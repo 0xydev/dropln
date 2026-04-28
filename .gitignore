@@ -1,0 +1,25 @@
+# Binaries
+/bin/
+/dist/
+
+# Go
+*.test
+*.out
+go.work
+go.work.sum
+
+# Frontend build artifacts
+web/static/dist/
+web/node_modules/
+
+# Reference clone (kept locally for study, not committed)
+/reference/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Local env
+.env
+.env.local
