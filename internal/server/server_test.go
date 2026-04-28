@@ -20,6 +20,29 @@ import (
 
 const validPayload = `{"v":2,"ct":"ME5JF/YBEijp2uYMzLZozbKtWc5wfy6R59NBb7SmRig=","adata":[["gMSNoLOk4z0RnmsYwXZ8mw==","TZO+JWuIuxs=",100000,256,128,"aes","gcm","zlib"],"plaintext",1,0],"meta":{"expire":"5min"}}`
 
+func commentForPaste(pasteID string) string {
+	return `{"v":2,"ct":"ME5JF/YBEijp2uYMzLZozbKtWc5wfy6R59NBb7SmRig=","adata":["gMSNoLOk4z0RnmsYwXZ8mw==","TZO+JWuIuxs=",100000,256,128,"aes","gcm","zlib"],"pasteid":"` + pasteID + `","parentid":"` + pasteID + `"}`
+}
+
+func createPaste(t *testing.T, srv http.Handler) (id, deleteToken string) {
+	t.Helper()
+	req := httptest.NewRequest("POST", "/api/v1/paste", strings.NewReader(validPayload))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("createPaste: got %d, body %s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		ID          string `json:"id"`
+		DeleteToken string `json:"delete_token"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("createPaste body: %v", err)
+	}
+	return resp.ID, resp.DeleteToken
+}
+
 func setup(t *testing.T) (http.Handler, *config.Config) {
 	t.Helper()
 	dsn := os.Getenv("ULAKBIN_TEST_DATABASE_URL")
@@ -123,6 +146,95 @@ func TestSecurityHeaders(t *testing.T) {
 	}
 	if csp := rec.Header().Get("Content-Security-Policy"); !strings.Contains(csp, "default-src 'none'") {
 		t.Errorf("CSP missing or weak: %q", csp)
+	}
+}
+
+func TestComment_HappyPath(t *testing.T) {
+	srv, _ := setup(t)
+	pasteID, _ := createPaste(t, srv)
+
+	body := commentForPaste(pasteID)
+	req := httptest.NewRequest("POST", "/api/v1/paste/"+pasteID+"/comment", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create comment: got %d, body %s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil || resp.ID == "" {
+		t.Fatalf("comment id missing: err=%v body=%s", err, rec.Body.String())
+	}
+
+	// List should include the comment with `id` and `created` spliced in.
+	listRec := httptest.NewRecorder()
+	srv.ServeHTTP(listRec, httptest.NewRequest("GET", "/api/v1/paste/"+pasteID+"/comments", nil))
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("list comments: got %d, body %s", listRec.Code, listRec.Body.String())
+	}
+	var list []map[string]any
+	if err := json.Unmarshal(listRec.Body.Bytes(), &list); err != nil {
+		t.Fatalf("list body: %v", err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("got %d comments, want 1", len(list))
+	}
+	if list[0]["id"] != resp.ID {
+		t.Errorf("listed id mismatch: got %v, want %v", list[0]["id"], resp.ID)
+	}
+	if _, ok := list[0]["created"].(float64); !ok {
+		t.Errorf(`"created" missing or wrong type: %T`, list[0]["created"])
+	}
+	// Original envelope keys must still be there.
+	for _, k := range []string{"v", "ct", "adata", "pasteid", "parentid"} {
+		if _, ok := list[0][k]; !ok {
+			t.Errorf("listed comment missing %q", k)
+		}
+	}
+}
+
+func TestComment_ParentMissing(t *testing.T) {
+	srv, _ := setup(t)
+	missing := "0123456789abcdef"
+	body := commentForPaste(missing)
+	req := httptest.NewRequest("POST", "/api/v1/paste/"+missing+"/comment", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("got %d, want 404", rec.Code)
+	}
+}
+
+func TestComment_PasteIDMismatch(t *testing.T) {
+	srv, _ := setup(t)
+	pasteID, _ := createPaste(t, srv)
+
+	// Body claims a different paste id.
+	body := commentForPaste("0000000000000000")
+	req := httptest.NewRequest("POST", "/api/v1/paste/"+pasteID+"/comment", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("got %d, want 422", rec.Code)
+	}
+}
+
+func TestComment_ListEmpty(t *testing.T) {
+	srv, _ := setup(t)
+	pasteID, _ := createPaste(t, srv)
+
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, httptest.NewRequest("GET", "/api/v1/paste/"+pasteID+"/comments", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("got %d", rec.Code)
+	}
+	body := strings.TrimSpace(rec.Body.String())
+	if body != "[]" {
+		t.Errorf("expected [], got %q", body)
 	}
 }
 

@@ -4,15 +4,11 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"regexp"
 	"time"
 
 	"github.com/0xydev/ulakbin/internal/paste"
 	"github.com/0xydev/ulakbin/internal/storage"
 )
-
-// idPattern enforces the 16-hex-char paste ID shape produced by paste.NewID.
-var idPattern = regexp.MustCompile(`^[0-9a-f]{16}$`)
 
 // Version is the running server version. Override at build time with
 // `-ldflags "-X github.com/0xydev/ulakbin/internal/server.Version=..."`.
@@ -103,7 +99,7 @@ func (s *Server) handleCreatePaste(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleReadPaste(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	if !idPattern.MatchString(id) {
+	if !paste.ValidID(id) {
 		writeError(w, http.StatusNotFound, "not_found", "")
 		return
 	}
@@ -128,7 +124,7 @@ func (s *Server) handleReadPaste(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleDeletePaste(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	if !idPattern.MatchString(id) {
+	if !paste.ValidID(id) {
 		writeError(w, http.StatusNotFound, "not_found", "")
 		return
 	}

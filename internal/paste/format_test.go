@@ -193,3 +193,128 @@ func TestDecode_Rejections(t *testing.T) {
 func adata(m map[string]any) []any {
 	return m["adata"].([]any)
 }
+
+// sampleCommentJSON is the comment shape PrivateBin's tst/Bootstrap.php
+// produces in getCommentPost(): same crypto envelope as a paste, but adata
+// is the flat cipher_params and pasteid/parentid replace meta.
+const sampleCommentJSON = `{
+  "v": 2,
+  "ct": "ME5JF/YBEijp2uYMzLZozbKtWc5wfy6R59NBb7SmRig=",
+  "adata": ["gMSNoLOk4z0RnmsYwXZ8mw==","TZO+JWuIuxs=",100000,256,128,"aes","gcm","zlib"],
+  "pasteid": "0123456789abcdef",
+  "parentid": "0123456789abcdef"
+}`
+
+func TestDecodeComment_Sample(t *testing.T) {
+	c, err := DecodeComment([]byte(sampleCommentJSON))
+	if err != nil {
+		t.Fatalf("decode comment: %v", err)
+	}
+	if c.Version != 2 {
+		t.Errorf("version: got %v, want 2", c.Version)
+	}
+	if c.PasteID != "0123456789abcdef" || c.ParentID != "0123456789abcdef" {
+		t.Errorf("ids: got %q/%q", c.PasteID, c.ParentID)
+	}
+	if c.ADATA.Algorithm != "aes" || c.ADATA.Mode != "gcm" {
+		t.Errorf("cipher: got %s/%s", c.ADATA.Algorithm, c.ADATA.Mode)
+	}
+}
+
+func TestCommentRoundTrip(t *testing.T) {
+	c1, err := DecodeComment([]byte(sampleCommentJSON))
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	out, err := json.Marshal(c1)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	c2, err := DecodeComment(out)
+	if err != nil {
+		t.Fatalf("re-decode: %v\noutput was: %s", err, out)
+	}
+	if *c1 != *c2 {
+		t.Errorf("round-trip mismatch:\n got=%+v\nwant=%+v", c2, c1)
+	}
+}
+
+func TestDecodeComment_Rejections(t *testing.T) {
+	type tweak func(map[string]any)
+	cases := []struct {
+		name   string
+		tweak  tweak
+		expect string
+	}{
+		{
+			name:   "extra top-level key",
+			tweak:  func(m map[string]any) { m["meta"] = map[string]any{} },
+			expect: "6",
+		},
+		{
+			name:   "missing parentid",
+			tweak:  func(m map[string]any) { delete(m, "parentid") },
+			expect: "4",
+		},
+		{
+			name:   "invalid pasteid",
+			tweak:  func(m map[string]any) { m["pasteid"] = "not-hex" },
+			expect: "pasteid",
+		},
+		{
+			name:   "uppercase pasteid",
+			tweak:  func(m map[string]any) { m["pasteid"] = "0123456789ABCDEF" },
+			expect: "pasteid",
+		},
+		{
+			name:   "invalid parentid",
+			tweak:  func(m map[string]any) { m["parentid"] = "short" },
+			expect: "parentid",
+		},
+		{
+			name:   "invalid base64 ct",
+			tweak:  func(m map[string]any) { m["ct"] = "$" },
+			expect: "ct",
+		},
+		{
+			name:   "low entropy ct",
+			tweak:  func(m map[string]any) { m["ct"] = "bm9kYXRhbm9kYXRhbm9kYXRhbm9kYXRhbm9kYXRhCg==" },
+			expect: "entropy",
+		},
+		{
+			name: "invalid iv (in flat adata)",
+			tweak: func(m map[string]any) {
+				m["adata"].([]any)[0] = "$"
+			},
+			expect: "iv",
+		},
+		{
+			name: "iterations too low",
+			tweak: func(m map[string]any) {
+				m["adata"].([]any)[2] = 1000
+			},
+			expect: "iterations",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var m map[string]any
+			if err := json.Unmarshal([]byte(sampleCommentJSON), &m); err != nil {
+				t.Fatalf("unmarshal sample: %v", err)
+			}
+			tc.tweak(m)
+			data, err := json.Marshal(m)
+			if err != nil {
+				t.Fatalf("re-marshal: %v", err)
+			}
+			_, err = DecodeComment(data)
+			if err == nil {
+				t.Fatalf("expected error containing %q, got nil", tc.expect)
+			}
+			if !strings.Contains(err.Error(), tc.expect) {
+				t.Errorf("expected error containing %q, got: %v", tc.expect, err)
+			}
+		})
+	}
+}

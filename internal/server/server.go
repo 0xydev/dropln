@@ -46,6 +46,9 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /api/v1/paste/{id}", s.handleReadPaste)
 	mux.HandleFunc("DELETE /api/v1/paste/{id}", s.handleDeletePaste)
 
+	mux.Handle("POST /api/v1/paste/{id}/comment", rateLimit(http.HandlerFunc(s.handleCreateComment)))
+	mux.HandleFunc("GET /api/v1/paste/{id}/comments", s.handleListComments)
+
 	mux.Handle("GET /_dev/", http.StripPrefix("/_dev/", dev.Handler()))
 
 	return mux

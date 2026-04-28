@@ -19,9 +19,23 @@ type Paste struct {
 	CreatedAt     time.Time
 }
 
-// ErrIDConflict is returned by Create if the chosen ID already exists.
-// Callers should retry with a fresh ID.
-var ErrIDConflict = errors.New("paste id already exists")
+// Comment is a stored comment row. Payload holds the opaque Format v2 comment
+// envelope. Comments are bound to a paste and removed when the paste is.
+type Comment struct {
+	PasteID   string
+	ID        string
+	ParentID  string
+	Payload   []byte
+	CreatedAt time.Time
+}
+
+// ErrIDConflict is returned by Create / CreateComment when the chosen ID
+// already exists. Callers should retry with a fresh ID.
+var ErrIDConflict = errors.New("id already exists")
+
+// ErrParentMissing is returned by CreateComment when the target paste does
+// not exist (or was already burned/expired/deleted).
+var ErrParentMissing = errors.New("parent paste not found")
 
 // Store is the persistence contract.
 type Store interface {
@@ -39,6 +53,15 @@ type Store interface {
 
 	// Purge removes up to batchSize expired pastes. Returns the count purged.
 	Purge(ctx context.Context, batchSize int) (int, error)
+
+	// CreateComment inserts a comment for an existing paste. Returns
+	// ErrIDConflict on comment-id collision and ErrParentMissing if the
+	// paste does not exist.
+	CreateComment(ctx context.Context, c Comment) error
+
+	// ListComments returns the paste's comments in creation order.
+	// Returns an empty slice if the paste has no comments (or doesn't exist).
+	ListComments(ctx context.Context, pasteID string) ([]Comment, error)
 
 	// Close releases resources.
 	Close()

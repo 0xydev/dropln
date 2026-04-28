@@ -27,6 +27,7 @@ var (
 	validModes       = map[string]struct{}{"ctr": {}, "cbc": {}, "gcm": {}}
 	validCompression = map[string]struct{}{"zlib": {}, "none": {}}
 	pasteTopKeys     = map[string]struct{}{"v": {}, "ct": {}, "adata": {}, "meta": {}}
+	commentTopKeys   = map[string]struct{}{"v": {}, "ct": {}, "adata": {}, "pasteid": {}, "parentid": {}}
 )
 
 // Formatter selects how the decrypted text is rendered client-side.
@@ -173,28 +174,38 @@ func Decode(data []byte) (*Payload, error) {
 	return &p, nil
 }
 
-// Validate enforces all FormatV2 rules.
+// Validate enforces all FormatV2 rules for a paste.
 func (p *Payload) Validate() error {
 	if p.Version < FormatVersion {
 		return fmt.Errorf("version: must be >= %d, got %v", FormatVersion, p.Version)
 	}
+	if err := validateCipherParams(p.ADATA.Cipher); err != nil {
+		return err
+	}
+	if err := validateCiphertext(p.Ciphertext); err != nil {
+		return err
+	}
+	if p.Meta.Expire == "" {
+		return errors.New(`meta.expire: required`)
+	}
+	return nil
+}
 
-	c := p.ADATA.Cipher
-
+// validateCipherParams enforces the algorithm/mode/size rules from FormatV2.
+// Used by both paste and comment validators.
+func validateCipherParams(c CipherParams) error {
 	if n := len(c.IV); n == 0 || n > maxIVBase64 {
 		return fmt.Errorf("iv: length must be 1..%d, got %d", maxIVBase64, n)
 	}
 	if _, err := base64.StdEncoding.DecodeString(c.IV); err != nil {
 		return fmt.Errorf("iv: invalid base64: %w", err)
 	}
-
 	if n := len(c.Salt); n == 0 || n > maxSaltBase64 {
 		return fmt.Errorf("salt: length must be 1..%d, got %d", maxSaltBase64, n)
 	}
 	if _, err := base64.StdEncoding.DecodeString(c.Salt); err != nil {
 		return fmt.Errorf("salt: invalid base64: %w", err)
 	}
-
 	if c.Iterations < minIterations {
 		return fmt.Errorf("iterations: must be > %d, got %d", minIterations-1, c.Iterations)
 	}
@@ -213,15 +224,20 @@ func (p *Payload) Validate() error {
 	if _, ok := validCompression[c.Compression]; !ok {
 		return fmt.Errorf("compression: must be zlib or none, got %q", c.Compression)
 	}
+	return nil
+}
 
-	ct, err := base64.StdEncoding.DecodeString(p.Ciphertext)
+// validateCiphertext checks ct is valid base64 and not pathologically
+// compressible (entropy floor — properly encrypted bytes should not deflate
+// smaller than themselves).
+func validateCiphertext(ct64 string) error {
+	ct, err := base64.StdEncoding.DecodeString(ct64)
 	if err != nil {
 		return fmt.Errorf("ct: invalid base64: %w", err)
 	}
 	if len(ct) == 0 {
 		return errors.New("ct: empty")
 	}
-
 	deflated, err := deflateLen(ct)
 	if err != nil {
 		return fmt.Errorf("ct entropy check: %w", err)
@@ -229,11 +245,61 @@ func (p *Payload) Validate() error {
 	if len(ct) > deflated {
 		return errors.New("ct: entropy too low (compressible)")
 	}
+	return nil
+}
 
-	if p.Meta.Expire == "" {
-		return errors.New(`meta.expire: required`)
+// CommentPayload is the Format v2 envelope for a comment. Differs from a
+// paste in two ways: adata is flat cipher params (not nested with formatter
+// flags), and pasteid/parentid replace the paste's meta block.
+type CommentPayload struct {
+	Version    float64      `json:"v"`
+	Ciphertext string       `json:"ct"`
+	ADATA      CipherParams `json:"adata"`
+	PasteID    string       `json:"pasteid"`
+	ParentID   string       `json:"parentid"`
+}
+
+// DecodeComment parses a Format v2 comment payload and validates it.
+func DecodeComment(data []byte) (*CommentPayload, error) {
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(data, &top); err != nil {
+		return nil, fmt.Errorf("comment: %w", err)
 	}
+	if len(top) != 5 {
+		return nil, fmt.Errorf("comment: expected 5 keys, got %d", len(top))
+	}
+	for k := range top {
+		if _, ok := commentTopKeys[k]; !ok {
+			return nil, fmt.Errorf("comment: unknown key %q", k)
+		}
+	}
+	var c CommentPayload
+	if err := json.Unmarshal(data, &c); err != nil {
+		return nil, fmt.Errorf("comment: %w", err)
+	}
+	if err := c.Validate(); err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
 
+// Validate enforces FormatV2 rules for a comment.
+func (c *CommentPayload) Validate() error {
+	if c.Version < FormatVersion {
+		return fmt.Errorf("version: must be >= %d, got %v", FormatVersion, c.Version)
+	}
+	if err := validateCipherParams(c.ADATA); err != nil {
+		return err
+	}
+	if err := validateCiphertext(c.Ciphertext); err != nil {
+		return err
+	}
+	if !ValidID(c.PasteID) {
+		return errors.New("pasteid: must be 16 lowercase hex chars")
+	}
+	if !ValidID(c.ParentID) {
+		return errors.New("parentid: must be 16 lowercase hex chars")
+	}
 	return nil
 }
 

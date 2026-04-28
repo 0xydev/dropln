@@ -252,6 +252,139 @@ func TestCreate_IDConflict(t *testing.T) {
 	}
 }
 
+// commentPayload is just opaque bytes from storage's perspective.
+const commentPayload = `{"v":2,"ct":"abcd","adata":[],"pasteid":"x","parentid":"x"}`
+
+func makeComment(t *testing.T, pasteID string) storage.Comment {
+	t.Helper()
+	return storage.Comment{
+		PasteID:  pasteID,
+		ID:       mustID(t),
+		ParentID: pasteID,
+		Payload:  []byte(commentPayload),
+	}
+}
+
+func TestCreateAndListComments(t *testing.T) {
+	s := newStore(t)
+	ctx := context.Background()
+
+	p := makePaste(t)
+	if err := s.Create(ctx, p); err != nil {
+		t.Fatalf("Create paste: %v", err)
+	}
+	t.Cleanup(func() { _, _ = s.Delete(ctx, p.ID, p.DeleteToken) })
+
+	c1 := makeComment(t, p.ID)
+	c2 := makeComment(t, p.ID)
+	if err := s.CreateComment(ctx, c1); err != nil {
+		t.Fatalf("CreateComment 1: %v", err)
+	}
+	// Force a >0 created_at gap so ordering is deterministic.
+	time.Sleep(2 * time.Millisecond)
+	if err := s.CreateComment(ctx, c2); err != nil {
+		t.Fatalf("CreateComment 2: %v", err)
+	}
+
+	got, err := s.ListComments(ctx, p.ID)
+	if err != nil {
+		t.Fatalf("ListComments: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("got %d comments, want 2", len(got))
+	}
+	if got[0].ID != c1.ID || got[1].ID != c2.ID {
+		t.Errorf("comment order: got [%s, %s], want [%s, %s]",
+			got[0].ID, got[1].ID, c1.ID, c2.ID)
+	}
+	if string(got[0].Payload) != commentPayload {
+		t.Errorf("comment payload mismatch")
+	}
+}
+
+func TestCreateComment_ParentMissing(t *testing.T) {
+	s := newStore(t)
+	ctx := context.Background()
+
+	c := makeComment(t, mustID(t)) // paste id never created
+	err := s.CreateComment(ctx, c)
+	if !errors.Is(err, storage.ErrParentMissing) {
+		t.Errorf("got %v, want ErrParentMissing", err)
+	}
+}
+
+func TestCreateComment_IDConflict(t *testing.T) {
+	s := newStore(t)
+	ctx := context.Background()
+
+	p := makePaste(t)
+	if err := s.Create(ctx, p); err != nil {
+		t.Fatalf("Create paste: %v", err)
+	}
+	t.Cleanup(func() { _, _ = s.Delete(ctx, p.ID, p.DeleteToken) })
+
+	c := makeComment(t, p.ID)
+	if err := s.CreateComment(ctx, c); err != nil {
+		t.Fatalf("first CreateComment: %v", err)
+	}
+	err := s.CreateComment(ctx, c)
+	if !errors.Is(err, storage.ErrIDConflict) {
+		t.Errorf("got %v, want ErrIDConflict", err)
+	}
+}
+
+func TestComments_CascadeOnPasteDelete(t *testing.T) {
+	s := newStore(t)
+	ctx := context.Background()
+
+	p := makePaste(t)
+	if err := s.Create(ctx, p); err != nil {
+		t.Fatalf("Create paste: %v", err)
+	}
+	c := makeComment(t, p.ID)
+	if err := s.CreateComment(ctx, c); err != nil {
+		t.Fatalf("CreateComment: %v", err)
+	}
+
+	if _, err := s.Delete(ctx, p.ID, p.DeleteToken); err != nil {
+		t.Fatalf("Delete paste: %v", err)
+	}
+	got, err := s.ListComments(ctx, p.ID)
+	if err != nil {
+		t.Fatalf("ListComments: %v", err)
+	}
+	if len(got) != 0 {
+		t.Errorf("got %d comments after parent delete, want 0", len(got))
+	}
+}
+
+func TestComments_CascadeOnBurn(t *testing.T) {
+	s := newStore(t)
+	ctx := context.Background()
+
+	p := makePaste(t)
+	p.BurnAfterRead = true
+	if err := s.Create(ctx, p); err != nil {
+		t.Fatalf("Create paste: %v", err)
+	}
+	c := makeComment(t, p.ID)
+	if err := s.CreateComment(ctx, c); err != nil {
+		t.Fatalf("CreateComment: %v", err)
+	}
+
+	// Reading a burn-after-read paste deletes it; comments must vanish too.
+	if _, _, err := s.Read(ctx, p.ID); err != nil {
+		t.Fatalf("Read: %v", err)
+	}
+	got, err := s.ListComments(ctx, p.ID)
+	if err != nil {
+		t.Fatalf("ListComments: %v", err)
+	}
+	if len(got) != 0 {
+		t.Errorf("got %d comments after burn, want 0", len(got))
+	}
+}
+
 func TestPurge(t *testing.T) {
 	s := newStore(t)
 	ctx := context.Background()

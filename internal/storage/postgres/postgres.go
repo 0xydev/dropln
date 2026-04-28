@@ -98,6 +98,52 @@ func (s *Store) Delete(ctx context.Context, id, deleteToken string) (bool, error
 	return tag.RowsAffected() > 0, nil
 }
 
+func (s *Store) CreateComment(ctx context.Context, c storage.Comment) error {
+	const q = `
+		INSERT INTO comments (paste_id, id, parent_id, payload)
+		VALUES ($1, $2, $3, $4)`
+	_, err := s.pool.Exec(ctx, q, c.PasteID, c.ID, c.ParentID, c.Payload)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			switch pgErr.Code {
+			case pgerrcode.UniqueViolation:
+				return storage.ErrIDConflict
+			case pgerrcode.ForeignKeyViolation:
+				return storage.ErrParentMissing
+			}
+		}
+		return fmt.Errorf("insert comment: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) ListComments(ctx context.Context, pasteID string) ([]storage.Comment, error) {
+	const q = `
+		SELECT paste_id, id, parent_id, payload, created_at
+		FROM comments
+		WHERE paste_id = $1
+		ORDER BY created_at, id`
+	rows, err := s.pool.Query(ctx, q, pasteID)
+	if err != nil {
+		return nil, fmt.Errorf("list comments: %w", err)
+	}
+	defer rows.Close()
+
+	var out []storage.Comment
+	for rows.Next() {
+		var c storage.Comment
+		if err := rows.Scan(&c.PasteID, &c.ID, &c.ParentID, &c.Payload, &c.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan comment: %w", err)
+		}
+		out = append(out, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows: %w", err)
+	}
+	return out, nil
+}
+
 func (s *Store) Purge(ctx context.Context, batchSize int) (int, error) {
 	if batchSize <= 0 {
 		return 0, nil
