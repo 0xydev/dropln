@@ -165,6 +165,73 @@ For comments: `adata` is the flat cipher-params (8 elements), and
 └── Makefile
 ```
 
+## Internal deployment
+
+The simplest path is the included `compose.yaml`: it brings up the app and a
+PostgreSQL 17 instance on a single host. Bind is `127.0.0.1:8080` by default,
+so put your team's reverse proxy in front of it for TLS.
+
+```sh
+cp .env.example .env
+# fill in POSTGRES_PASSWORD (e.g. `openssl rand -base64 24`)
+
+docker compose up -d --build
+docker compose logs -f ulakbin
+```
+
+### Reverse proxy
+
+**Caddy** (auto Let's Encrypt, single-line config):
+
+```Caddyfile
+ulakb.example.com {
+    reverse_proxy 127.0.0.1:8080
+    encode zstd gzip
+}
+```
+
+After putting Caddy in front, set `ULAKBIN_HSTS=true` and
+`ULAKBIN_TRUST_PROXY=true` in `.env`, then `docker compose up -d`.
+
+**nginx** equivalent:
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name ulakb.example.com;
+    ssl_certificate     /etc/letsencrypt/live/ulakb.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ulakb.example.com/privkey.pem;
+
+    client_max_body_size 64m;   # > ULAKBIN_MAX_PASTE_BYTES
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP       $remote_addr;
+        proxy_set_header Host            $host;
+    }
+}
+```
+
+### Backups
+
+Postgres data lives in the `postgres-data` named volume. Snapshot it
+however your team handles backups; for a quick `pg_dump`:
+
+```sh
+docker compose exec postgres pg_dump -U ulakbin -d ulakbin -Fc > ulakbin-$(date +%F).dump
+```
+
+### Updating
+
+```sh
+git pull
+docker compose up -d --build ulakbin   # rebuild + restart only the app
+```
+
+Migrations run automatically on startup (idempotent — `schema_migrations`
+table tracks applied versions).
+
 ## Tests
 
 ```sh

@@ -1,0 +1,48 @@
+# Production-ish compose for internal deployment.
+#
+# Brings up the app + Postgres with a persistent volume and a healthcheck.
+# TLS termination is intentionally NOT included — put nginx / Caddy / your
+# team's existing reverse proxy in front and proxy to ulakbin:8080.
+#
+# Usage:
+#   1. cp .env.example .env  &&  edit values
+#   2. docker compose up -d --build
+#   3. docker compose logs -f ulakbin
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ulakbin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-ulakbin}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ulakbin} -d ${POSTGRES_DB:-ulakbin}"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  ulakbin:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ULAKBIN_DATABASE_URL: postgres://${POSTGRES_USER:-ulakbin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-ulakbin}?sslmode=disable
+      ULAKBIN_ADDR: ${ULAKBIN_ADDR:-:8080}
+      ULAKBIN_MAX_PASTE_BYTES: ${ULAKBIN_MAX_PASTE_BYTES:-33554432}
+      ULAKBIN_RATE_LIMIT_PER_MIN: ${ULAKBIN_RATE_LIMIT_PER_MIN:-10}
+      ULAKBIN_RATE_LIMIT_BURST: ${ULAKBIN_RATE_LIMIT_BURST:-5}
+      ULAKBIN_TRUST_PROXY: ${ULAKBIN_TRUST_PROXY:-false}
+      ULAKBIN_HSTS: ${ULAKBIN_HSTS:-false}
+    ports:
+      # Bind to localhost so the reverse proxy on the same host fronts it,
+      # but the app isn't exposed to the public network directly.
+      - "127.0.0.1:${ULAKBIN_PORT:-8080}:8080"
+
+volumes:
+  postgres-data:

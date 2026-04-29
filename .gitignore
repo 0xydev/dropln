@@ -24,6 +24,7 @@ web/node_modules/
 .idea/
 .DS_Store
 
-# Local env
+# Local env (real secrets — see .env.example for the template)
 .env
 .env.local
+.env.production
