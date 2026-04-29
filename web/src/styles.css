@@ -1201,6 +1201,49 @@ button { cursor: pointer; }
   padding: 32px;
   color: var(--fg-2);
 }
+
+.attachment-text {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: clamp(280px, calc(100vh - 420px), 560px);
+  background: var(--bg-inset);
+}
+.attachment-text > .ulak-cm-host {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.attachment-text > .ulak-cm-host > .cm-editor {
+  flex: 1;
+}
+
+/* ============================ Image lightbox ============================ */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.92);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 200;
+  cursor: zoom-out;
+  padding: 20px;
+  animation: lightboxIn 140ms ease-out;
+}
+.lightbox img {
+  max-width: 96vw;
+  max-height: 96vh;
+  object-fit: contain;
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-3);
+  background: var(--bg-0);
+}
+@keyframes lightboxIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 .viewer-body > .ulak-cm-host {
   flex: 1;
   min-height: 240px;

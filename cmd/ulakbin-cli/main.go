@@ -44,9 +44,11 @@ const helpText = `ulakbin — encrypted ephemeral paste
 USAGE
   ulakbin                              read paste content from stdin → URL
   ulakbin <ref>                        fetch & decrypt (ref = id#key or full URL)
-  ulakbin --file PATH                  attach file as encrypted paste → URL
+  ulakbin --file PATH                  attach a file → URL
+  ulakbin delete <id> [token]          delete a paste (uses cached token if omitted)
+  ulakbin list                         list pastes you've created locally
 
-FLAGS
+CREATE FLAGS
   --server URL          server endpoint (env ULAKBIN_SERVER, default http://localhost:8080)
   --expire WIN          5min|10min|1hour|1day|1week|1month|1year|never (default 1day)
   --burn                one-time-read paste (URL gets #- warning prefix)
@@ -54,14 +56,28 @@ FLAGS
   --file PATH           attach file (in addition to or instead of stdin)
   --format FMT          plaintext | syntaxhighlighting | markdown (default plaintext)
   --no-discussion       disable comments on this paste
-  --copy                also copy resulting URL to clipboard (pbcopy/xclip/wl-copy)
+  --copy                also copy resulting URL to clipboard
+  --note TEXT           remember a note for this paste in local history
   --quiet, -q           print only the URL
-  --output PATH         when fetching, write decrypted content to PATH instead of stdout
+
+FETCH FLAGS
+  --extract DIR         save attachment to DIR (default: cwd)
+  --output FILE         write paste text to FILE instead of stdout
+  --no-text             skip paste text output
+  --no-attachment       skip attachment auto-save
+  --force               overwrite existing files
+  --password PW         decrypt password-protected paste
+
+DELETE FLAGS
+  --token TOKEN         delete token (otherwise read from local history)
+
+GLOBAL
   --version             print version
   --help, -h            this help
 
 ENV
   ULAKBIN_SERVER        default server URL when --server is not given
+  ULAKBIN_HISTORY       custom history file path (default: $XDG_CONFIG_HOME/ulakbin/history.json)
 `
 
 func main() {
@@ -85,6 +101,14 @@ func main() {
 		if err := createFlow(cfg); err != nil {
 			fail(err)
 		}
+	case actionDelete:
+		if err := runDelete(cfg); err != nil {
+			fail(err)
+		}
+	case actionList:
+		if err := runList(); err != nil {
+			fail(err)
+		}
 	}
 }
 
@@ -106,7 +130,18 @@ type runConfig struct {
 	noDiscussion bool
 	copy         bool
 	quiet        bool
+	note         string
+
+	// fetch-side
 	output       string
+	extract      string
+	noText       bool
+	noAttachment bool
+	force        bool
+
+	// delete-side
+	deleteID    string
+	deleteToken string
 }
 
 type action int
@@ -114,6 +149,8 @@ type action int
 const (
 	actionCreate action = iota
 	actionFetch
+	actionDelete
+	actionList
 	actionHelp
 	actionVersion
 )
@@ -141,7 +178,13 @@ func parseArgs(args []string) (*runConfig, action, error) {
 	fs.BoolVar(&cfg.copy, "copy", false, "")
 	fs.BoolVar(&quietL, "quiet", false, "")
 	fs.BoolVar(&quietS, "q", false, "")
+	fs.StringVar(&cfg.note, "note", "", "")
 	fs.StringVar(&cfg.output, "output", "", "")
+	fs.StringVar(&cfg.extract, "extract", "", "")
+	fs.BoolVar(&cfg.noText, "no-text", false, "")
+	fs.BoolVar(&cfg.noAttachment, "no-attachment", false, "")
+	fs.BoolVar(&cfg.force, "force", false, "")
+	fs.StringVar(&cfg.deleteToken, "token", "", "")
 	fs.BoolVar(&showVersion, "version", false, "")
 	fs.BoolVar(&showHelpL, "help", false, "")
 	fs.BoolVar(&showHelpS, "h", false, "")
@@ -168,6 +211,27 @@ func parseArgs(args []string) (*runConfig, action, error) {
 	}
 
 	rest := fs.Args()
+	if len(rest) >= 1 {
+		switch rest[0] {
+		case "list":
+			if len(rest) > 1 {
+				return nil, 0, fmt.Errorf("`list` takes no arguments")
+			}
+			return cfg, actionList, nil
+		case "delete", "rm":
+			if len(rest) < 2 {
+				return nil, 0, fmt.Errorf("`%s` needs a paste id (e.g. `ulakbin %s abc123def456789a`)", rest[0], rest[0])
+			}
+			cfg.deleteID = rest[1]
+			if len(rest) >= 3 && cfg.deleteToken == "" {
+				cfg.deleteToken = rest[2]
+			}
+			if len(rest) > 3 {
+				return nil, 0, fmt.Errorf("unexpected extra args after delete: %v", rest[3:])
+			}
+			return cfg, actionDelete, nil
+		}
+	}
 	if len(rest) > 1 {
 		return nil, 0, fmt.Errorf("unexpected extra args: %v", rest[1:])
 	}
@@ -366,6 +430,28 @@ func createFlow(cfg *runConfig) error {
 	}
 	pasteURL := cfg.server + "/p/" + created.ID + "#" + fragment
 
+	// Record to local history (best-effort — never fails the user-facing
+	// flow, since the paste is already uploaded).
+	now := time.Now()
+	var expiresAt *time.Time
+	if d := expiryDuration(cfg.expire); d > 0 {
+		t := now.Add(d)
+		expiresAt = &t
+	}
+	if err := recordPaste(historyEntry{
+		ID:          created.ID,
+		Key:         res.KeyB64Url,
+		DeleteToken: created.DeleteToken,
+		URL:         pasteURL,
+		Server:      cfg.server,
+		ExpiresAt:   expiresAt,
+		CreatedAt:   now,
+		Burn:        cfg.burn,
+		Note:        cfg.note,
+	}); err != nil {
+		fmt.Fprintln(os.Stderr, "warn: could not write history:", err)
+	}
+
 	if cfg.copy {
 		if err := clipboardCopy(pasteURL); err != nil {
 			fmt.Fprintln(os.Stderr, "warn: clipboard copy failed:", err)
@@ -388,6 +474,21 @@ func createFlow(cfg *runConfig) error {
 	return nil
 }
 
+// expiryDuration mirrors the server's paste.ResolveExpire mapping
+// (internal/paste/expire.go) so we can record an approximate expires_at
+// in local history.
+func expiryDuration(v string) time.Duration {
+	return map[string]time.Duration{
+		"5min":   5 * time.Minute,
+		"10min":  10 * time.Minute,
+		"1hour":  time.Hour,
+		"1day":   24 * time.Hour,
+		"1week":  7 * 24 * time.Hour,
+		"1month": 30 * 24 * time.Hour,
+		"1year":  365 * 24 * time.Hour,
+	}[v]
+}
+
 // ─── fetch flow ──────────────────────────────────────────────────────────
 
 func fetchAndPrint(cfg *runConfig) error {
@@ -406,50 +507,131 @@ func fetchAndPrint(cfg *runConfig) error {
 		return err
 	}
 
-	if cfg.output != "" {
-		// Prefer attachment when present (likely binary); fall back to paste text.
-		var data []byte
-		if pl.Attachment != "" {
-			if i := strings.Index(pl.Attachment, "base64,"); i > 0 {
-				data, err = base64.StdEncoding.DecodeString(pl.Attachment[i+7:])
-				if err != nil {
-					return fmt.Errorf("decode attachment: %w", err)
-				}
+	// 1. Paste text: --output writes to file; otherwise stdout (unless --no-text).
+	if !cfg.noText {
+		if cfg.output != "" {
+			if err := writeOutFile(cfg.output, []byte(pl.Paste), cfg.force); err != nil {
+				return err
 			}
-		}
-		if data == nil {
-			data = []byte(pl.Paste)
-		}
-		return os.WriteFile(cfg.output, data, 0o644)
-	}
-
-	if pl.Paste != "" {
-		fmt.Print(pl.Paste)
-		if !strings.HasSuffix(pl.Paste, "\n") {
-			fmt.Println()
-		}
-	}
-
-	if pl.Attachment != "" && pl.AttachmentName != "" {
-		if i := strings.Index(pl.Attachment, "base64,"); i > 0 {
-			data, err := base64.StdEncoding.DecodeString(pl.Attachment[i+7:])
-			if err == nil {
-				name := safeAttachmentName(pl.AttachmentName)
-				if err := os.WriteFile(name, data, 0o644); err == nil {
-					fmt.Fprintln(os.Stderr, "saved attachment:", name)
-				} else {
-					fmt.Fprintln(os.Stderr, "warn: could not save attachment:", err)
-				}
+			fmt.Fprintln(os.Stderr, "saved paste text:", cfg.output)
+		} else if pl.Paste != "" {
+			fmt.Print(pl.Paste)
+			if !strings.HasSuffix(pl.Paste, "\n") {
+				fmt.Println()
 			}
 		}
 	}
+
+	// 2. Attachment: save unless --no-attachment.
+	if !cfg.noAttachment && pl.Attachment != "" {
+		i := strings.Index(pl.Attachment, "base64,")
+		if i < 0 {
+			fmt.Fprintln(os.Stderr, "warn: attachment uses unsupported encoding")
+			return nil
+		}
+		data, err := base64.StdEncoding.DecodeString(pl.Attachment[i+7:])
+		if err != nil {
+			return fmt.Errorf("decode attachment: %w", err)
+		}
+		name := safeAttachmentName(pl.AttachmentName)
+		if name == "" {
+			name = "attachment.bin"
+		}
+		dir := cfg.extract
+		if dir == "" {
+			dir = "."
+		}
+		outPath := filepath.Join(dir, name)
+		if err := writeOutFile(outPath, data, cfg.force); err != nil {
+			return err
+		}
+		fmt.Fprintln(os.Stderr, "saved attachment:", outPath)
+	}
+
 	return nil
 }
 
+// writeOutFile writes data to path, refusing to overwrite unless force is
+// set. Creates parent directories as needed.
+func writeOutFile(path string, data []byte, force bool) error {
+	if !force {
+		if _, err := os.Stat(path); err == nil {
+			return fmt.Errorf("%s already exists (use --force to overwrite)", path)
+		}
+	}
+	if dir := filepath.Dir(path); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("mkdir %s: %w", dir, err)
+		}
+	}
+	return os.WriteFile(path, data, 0o644)
+}
+
 // safeAttachmentName strips path traversal characters so a malicious
-// attachment_name can't write outside the working directory.
+// attachment_name can't write outside the destination directory.
 func safeAttachmentName(s string) string {
+	if s == "" {
+		return ""
+	}
 	return filepath.Base(s)
+}
+
+// ─── delete flow ─────────────────────────────────────────────────────────
+
+func runDelete(cfg *runConfig) error {
+	if !regexp.MustCompile(`^[0-9a-f]{16}$`).MatchString(cfg.deleteID) {
+		return fmt.Errorf("invalid paste id %q (expected 16 hex chars)", cfg.deleteID)
+	}
+
+	h, _ := loadHistory()
+	var entry *historyEntry
+	if h != nil {
+		entry = h.find(cfg.deleteID)
+	}
+
+	server := cfg.server
+	token := cfg.deleteToken
+
+	// If user didn't pass --token, look it up locally.
+	if token == "" {
+		if entry == nil {
+			return errors.New("no delete token: paste not in local history. " +
+				"pass `--token <delete_token>` explicitly")
+		}
+		token = entry.DeleteToken
+		// Default to the server we created on too — the user clearly
+		// didn't override, and the paste only exists on its origin.
+		if entry.Server != "" {
+			server = entry.Server
+		}
+	}
+
+	endpoint := fmt.Sprintf("%s/api/v1/paste/%s?token=%s",
+		strings.TrimRight(server, "/"), cfg.deleteID, url.QueryEscape(token))
+	req, err := http.NewRequest(http.MethodDelete, endpoint, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusNoContent:
+		// Drop from history if present.
+		if h != nil && h.remove(cfg.deleteID) {
+			_ = saveHistory(h)
+		}
+		fmt.Fprintln(os.Stderr, "✓ deleted")
+		return nil
+	case http.StatusNotFound:
+		return errors.New("not found — already deleted, expired, burned, or wrong token")
+	default:
+		b, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("server: %s — %s", resp.Status, strings.TrimSpace(string(b)))
+	}
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────

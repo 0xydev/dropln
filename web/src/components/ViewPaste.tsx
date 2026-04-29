@@ -25,7 +25,7 @@ import { formatBytes, formatCountdown, langExt } from "../lib/format-utils";
 import { base64UrlToBytes } from "../crypto/cipher";
 import { CodeEditor } from "./CodeEditor";
 import { IconDownload, IconFile } from "./icons";
-import { downloadDataUrl, inspectDataUrl } from "../lib/file-utils";
+import { downloadDataUrl, inspectDataUrl, languageForAttachment, textFromDataUrl } from "../lib/file-utils";
 import { renderMarkdown } from "../lib/markdown";
 
 export type DecryptedAttachment = { name: string; dataUrl: string };
@@ -56,6 +56,23 @@ function MarkdownView({ source }: { source: string }) {
 
 function AttachmentBlock({ attachment }: { attachment: DecryptedAttachment }) {
   const info = inspectDataUrl(attachment.dataUrl);
+  const [lightbox, setLightbox] = React.useState(false);
+
+  // Esc closes the image lightbox.
+  React.useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightbox(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightbox]);
+
+  // For text attachments, decode once and reuse — base64 → utf-8 isn't free.
+  const textContent = React.useMemo(
+    () => (info.isText ? textFromDataUrl(attachment.dataUrl) : ""),
+    [info.isText, attachment.dataUrl],
+  );
 
   return (
     <div className="attachment-block">
@@ -75,7 +92,12 @@ function AttachmentBlock({ attachment }: { attachment: DecryptedAttachment }) {
       </div>
       <div className="attachment-preview">
         {info.isImage && (
-          <img src={attachment.dataUrl} alt={attachment.name} />
+          <img
+            src={attachment.dataUrl}
+            alt={attachment.name}
+            style={{ cursor: "zoom-in" }}
+            onClick={() => setLightbox(true)}
+          />
         )}
         {info.isVideo && (
           <video src={attachment.dataUrl} controls preload="metadata" />
@@ -90,13 +112,34 @@ function AttachmentBlock({ attachment }: { attachment: DecryptedAttachment }) {
             className="attachment-pdf"
           />
         )}
-        {!info.isImage && !info.isVideo && !info.isAudio && !info.isPdf && (
+        {info.isText && (
+          <div className="attachment-text">
+            <CodeEditor
+              className="ulak-cm-host"
+              value={textContent}
+              language={languageForAttachment(attachment.name, info.mime)}
+              readOnly
+            />
+          </div>
+        )}
+        {!info.isImage && !info.isVideo && !info.isAudio && !info.isPdf && !info.isText && (
           <div className="attachment-blob">
             <IconFile size={20} />
             <span className="muted mono">Encrypted file · click Download to save</span>
           </div>
         )}
       </div>
+
+      {lightbox && info.isImage && (
+        <div
+          className="lightbox"
+          onClick={() => setLightbox(false)}
+          role="dialog"
+          aria-label="Image preview"
+        >
+          <img src={attachment.dataUrl} alt={attachment.name} />
+        </div>
+      )}
     </div>
   );
 }
