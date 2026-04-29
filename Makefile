@@ -1,12 +1,14 @@
-.PHONY: build build-go build-web run dev test test-integration tidy fmt vet lint clean db-up db-down
+.PHONY: build build-go build-web build-cli run dev test test-integration tidy fmt vet lint clean db-up db-down
 
-BINARY  := bin/ulakbin
-PKG     := ./...
-TEST_DB := postgres://ulakbin:ulakbin@localhost:5432/ulakbin?sslmode=disable
+BINARY     := bin/ulakbin
+CLI_BINARY := bin/ulakbin-cli
+PKG        := ./...
+TEST_DB    := postgres://ulakbin:ulakbin@localhost:5432/ulakbin?sslmode=disable
+VERSION    := $(shell git describe --tags --always 2>/dev/null || echo dev)
 
 # Build everything: frontend bundle first (so the Go embed has fresh assets),
-# then the Go binary.
-build: build-web build-go
+# then the server binary, then the CLI client.
+build: build-web build-go build-cli
 
 build-web:
 	cd web && npm install --silent && npm run build
@@ -14,6 +16,10 @@ build-web:
 build-go:
 	@mkdir -p bin
 	go build -trimpath -ldflags="-s -w" -o $(BINARY) ./cmd/ulakbin
+
+build-cli:
+	@mkdir -p bin
+	go build -trimpath -ldflags="-s -w -X main.Version=$(VERSION)" -o $(CLI_BINARY) ./cmd/ulakbin-cli
 
 run: build
 	ULAKBIN_DATABASE_URL='$(TEST_DB)' ./$(BINARY)

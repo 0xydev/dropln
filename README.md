@@ -165,6 +165,61 @@ For comments: `adata` is the flat cipher-params (8 elements), and
 └── Makefile
 ```
 
+## CLI
+
+`bin/ulakbin-cli` is a stand-alone client. Same crypto module as the web UI;
+server still only sees ciphertext. Built by `make build-cli` (or `make build`,
+which builds everything).
+
+```sh
+make build-cli
+sudo install -m 0755 bin/ulakbin-cli /usr/local/bin/ulakbin   # optional
+
+# server defaults to http://localhost:8080 — point elsewhere with --server or
+# the ULAKBIN_SERVER env var:
+export ULAKBIN_SERVER=https://ulakb.example.com
+```
+
+### Common flows
+
+```sh
+# stdin → URL
+echo "hello" | ulakbin
+cat error.log | ulakbin --expire=1hour
+
+# one-time-read paste (URL gets a #- warning prefix; link previewers
+# can't silently consume it)
+git diff | ulakbin --burn
+
+# password protected
+echo "AKIA..." | ulakbin --password="$PASSWORD"
+
+# attach a file (separate from stdin)
+ulakbin --file diagram.png
+
+# fetch & decrypt to stdout
+ulakbin abc123def456789a#KEY
+ulakbin https://ulakb.example.com/p/abc123def456789a#KEY
+
+# fetch with password
+ulakbin --password="$PASSWORD" abc123def456789a#KEY
+
+# write fetched content to file (saves attachment as the original
+# filename if present, else writes paste text)
+ulakbin --output recovered.log abc123def456789a#KEY
+
+# pipe-friendly: print only the URL on success
+echo "x" | ulakbin -q
+```
+
+`--copy` also pushes the URL to the clipboard (`pbcopy` on macOS,
+`wl-copy`/`xclip`/`xsel` on Linux, `clip` on Windows).
+
+Every paste is encrypted client-side with AES-256-GCM, key derived via
+PBKDF2-SHA256 (100k iterations). The decryption key lives in the URL
+fragment after `#` — never sent to the server. Pastes created with the
+CLI decrypt cleanly in the web UI and vice versa.
+
 ## Internal deployment
 
 The simplest path is the included `compose.yaml`: it brings up the app and a

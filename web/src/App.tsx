@@ -62,14 +62,26 @@ type ParsedURL =
   | { kind: "create" }
   | { kind: "view"; id: string; keyB64Url: string; warnFirst: boolean };
 
+// 32-byte key → base64url no-padding = 43 chars. A "warn before reading"
+// URL prepends "-" → 44 chars. We can't string-prefix-check for "-"
+// because base64url's alphabet *contains* "-", so a key that happens to
+// start with "-" would be misclassified. Length disambiguates.
+const KEY_FRAGMENT_LEN = 43;
+
 function parseURL(): ParsedURL {
   const m = window.location.pathname.match(/^\/p\/([0-9a-f]{16})\/?$/);
   if (!m) return { kind: "create" };
-  const hash = window.location.hash.slice(1); // strip leading '#'
-  if (!hash) return { kind: "create" }; // malformed
-  const warnFirst = hash.startsWith("-");
-  const keyB64Url = warnFirst ? hash.slice(1) : hash;
-  return { kind: "view", id: m[1], keyB64Url, warnFirst };
+  const hash = window.location.hash.slice(1);
+  if (!hash) return { kind: "create" };
+
+  if (hash.length === KEY_FRAGMENT_LEN) {
+    return { kind: "view", id: m[1], keyB64Url: hash, warnFirst: false };
+  }
+  if (hash.length === KEY_FRAGMENT_LEN + 1 && hash[0] === "-") {
+    return { kind: "view", id: m[1], keyB64Url: hash.slice(1), warnFirst: true };
+  }
+  // Malformed fragment — fall back to create page rather than crash.
+  return { kind: "create" };
 }
 
 function pushURL(path: string) {
