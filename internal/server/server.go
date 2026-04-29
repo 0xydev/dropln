@@ -51,6 +51,10 @@ func (s *Server) routes() http.Handler {
 
 	mux.Handle("GET /_dev/", http.StripPrefix("/_dev/", dev.Handler()))
 
+	// Catch-all: serve the embedded frontend SPA. Specific patterns above
+	// take precedence (Go 1.22+ ServeMux specificity rules).
+	mux.Handle("GET /", spaHandler())
+
 	return mux
 }
 

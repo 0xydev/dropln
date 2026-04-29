@@ -2,6 +2,10 @@
 /bin/
 /dist/
 
+# Frontend build output (embedded into Go binary at build time)
+/web/dist/
+/web/node_modules/
+
 # Go
 *.test
 *.out

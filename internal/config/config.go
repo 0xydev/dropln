@@ -32,7 +32,7 @@ func Load() (*Config, error) {
 	cfg := &Config{
 		Addr:            getEnv("ULAKBIN_ADDR", ":8080"),
 		DatabaseURL:     os.Getenv("ULAKBIN_DATABASE_URL"),
-		MaxPasteBytes:   10 * 1024 * 1024,
+		MaxPasteBytes:   32 * 1024 * 1024,
 		PurgeInterval:   5 * time.Minute,
 		PurgeBatchSize:  1000,
 		RateLimitPerMin: 10,
