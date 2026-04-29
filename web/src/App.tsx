@@ -225,9 +225,9 @@ function AppInner() {
     keyB64Url: string,
     password: string,
   ) => {
-    let envelope: PasteEnvelope;
+    let result;
     try {
-      envelope = await readPaste(id);
+      result = await readPaste(id);
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
         setViewState("not-found");
@@ -237,8 +237,22 @@ function AppInner() {
       return;
     }
 
-    setPendingEnvelope(envelope);
-    await tryDecrypt(envelope, keyB64Url, password);
+    setPendingEnvelope(result.envelope);
+
+    // Replace the placeholder timestamps from enterView with the truth from
+    // the server so the countdown is accurate rather than always ~1h.
+    setPasteData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        createdAt: result.createdAt ? result.createdAt * 1000 : prev.createdAt,
+        expiresAt: result.expiresAt
+          ? result.expiresAt * 1000
+          : Number.MAX_SAFE_INTEGER, // "never"
+      };
+    });
+
+    await tryDecrypt(result.envelope, keyB64Url, password);
   };
 
   const tryDecrypt = async (

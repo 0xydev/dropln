@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/0xydev/ulakbin/internal/paste"
@@ -118,6 +119,13 @@ func (s *Server) handleReadPaste(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Cache-Control", "no-store")
+	// Surface timing metadata so the client can show an accurate countdown
+	// without guessing creation time from meta.expire. Doesn't leak anything
+	// the server didn't already need to track for purge enforcement.
+	w.Header().Set("X-Paste-Created-At", strconv.FormatInt(p.CreatedAt.Unix(), 10))
+	if p.ExpiresAt != nil {
+		w.Header().Set("X-Paste-Expires-At", strconv.FormatInt(p.ExpiresAt.Unix(), 10))
+	}
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(p.Payload)
 }
