@@ -1,12 +1,7 @@
-import {
-  IconBook,
-  IconGithub,
-  IconMoon,
-  IconSearch,
-  IconSettings,
-  IconSun,
-} from "./icons";
+import { IconGithub, IconMoon, IconSearch, IconSun } from "./icons";
 import { Brand, MOD, type LogomarkVariant } from "./primitives";
+
+const REPO_URL = "https://github.com/0xydev/ulakbin";
 
 type TopNavProps = {
   onOpenPalette: () => void;
@@ -14,7 +9,8 @@ type TopNavProps = {
   theme: "dark" | "light";
   logomark: LogomarkVariant;
   onNavigate: (name: string) => void;
-  onOpenTweaks?: () => void;
+  /** Server version from /api/v1/info; empty until the request resolves. */
+  version?: string;
 };
 
 export function TopNav({
@@ -23,15 +19,21 @@ export function TopNav({
   theme,
   logomark,
   onNavigate,
-  onOpenTweaks,
+  version,
 }: TopNavProps) {
   return (
     <header className="topnav">
       <Brand variant={logomark} onClick={() => onNavigate("create")} />
-      <span className="badge badge-mono" style={{ marginLeft: 4 }}>
-        <span className="dot" style={{ background: "var(--ok)" }}></span>
-        v0.4.2
-      </span>
+      {version && (
+        <span
+          className="badge badge-mono"
+          style={{ marginLeft: 4 }}
+          title="Server version"
+        >
+          <span className="dot" style={{ background: "var(--ok)" }}></span>
+          {version}
+        </span>
+      )}
 
       <span className="nav-spacer"></span>
 
@@ -49,12 +51,10 @@ export function TopNav({
       <div className="nav-links">
         <a
           className="nav-link"
-          href="#docs"
-          onClick={(e) => e.preventDefault()}
+          href={REPO_URL}
+          target="_blank"
+          rel="noopener noreferrer"
         >
-          <IconBook size={13} /> Docs
-        </a>
-        <a className="nav-link" href="#gh" onClick={(e) => e.preventDefault()}>
           <IconGithub size={13} /> GitHub
         </a>
         <button
@@ -64,15 +64,6 @@ export function TopNav({
         >
           {theme === "dark" ? <IconSun size={14} /> : <IconMoon size={14} />}
         </button>
-        {onOpenTweaks && (
-          <button
-            className="btn btn-ghost btn-icon"
-            onClick={onOpenTweaks}
-            aria-label="Open settings"
-          >
-            <IconSettings size={14} />
-          </button>
-        )}
       </div>
     </header>
   );
@@ -88,13 +79,12 @@ export function Footer() {
         server cannot read your data.
       </span>
       <span style={{ flex: 1 }}></span>
-      <a className="footer-link" href="#" onClick={(e) => e.preventDefault()}>
-        Privacy
-      </a>
-      <a className="footer-link" href="#" onClick={(e) => e.preventDefault()}>
-        Security
-      </a>
-      <a className="footer-link" href="#" onClick={(e) => e.preventDefault()}>
+      <a
+        className="footer-link"
+        href={REPO_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
         Source
       </a>
       <span className="muted">AES-256-GCM · PBKDF2 100k</span>

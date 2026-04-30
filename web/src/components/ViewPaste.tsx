@@ -12,10 +12,8 @@ import {
   IconMaximize,
   IconMessage,
   IconMinimize,
-  IconMore,
   IconPlus,
   IconShare,
-  IconText,
 } from "./icons";
 import { useKeyboard, useToast } from "./primitives";
 import { CommentThread } from "./CommentThread";
@@ -605,9 +603,6 @@ function ViewSuccess({
         >
           <IconShare size={12} /> Share URL
         </button>
-        <button className="btn btn-ghost btn-sm">
-          <IconAlert size={12} /> Report
-        </button>
       </div>
 
       <div className="view-content-wrap">
@@ -643,11 +638,9 @@ function ViewSuccess({
                 className="btn btn-ghost btn-sm"
                 onClick={copyContent}
                 title="Copy"
+                aria-label="Copy paste content"
               >
                 <IconCopy size={12} />
-              </button>
-              <button className="btn btn-ghost btn-sm" title="More">
-                <IconMore size={12} />
               </button>
             </div>
           </div>

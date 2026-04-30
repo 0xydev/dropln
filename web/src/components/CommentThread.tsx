@@ -3,7 +3,6 @@ import {
   IconCopy,
   IconLock,
   IconMessage,
-  IconReply,
   IconShieldCheck,
   IconText,
 } from "./icons";
@@ -149,14 +148,18 @@ export function CommentThread({
           <Identicon seed={c.id} />
           <div className="comment-main">
             <div className="comment-head">
-              <span className="comment-id">@{c.id.slice(0, 8)}</span>
+              {/*
+                Comments are anonymous (no auth). The identicon is a stable
+                visual hash of the server-issued comment id — distinguishes
+                comments at a glance without inventing fake usernames.
+              */}
               <span
                 className="comment-time"
                 onMouseEnter={() => setHoverTs(c.id)}
                 onMouseLeave={() => setHoverTs(null)}
                 style={{ position: "relative" }}
               >
-                · {relativeTime(c.created)}
+                {relativeTime(c.created)}
                 {hoverTs === c.id && (
                   <span
                     className="tooltip"
@@ -169,9 +172,6 @@ export function CommentThread({
             </div>
             <div className="comment-body">{c.body}</div>
             <div className="comment-actions">
-              <button className="comment-action">
-                <IconReply size={11} /> Reply
-              </button>
               <button
                 className="comment-action"
                 onClick={() => {

@@ -117,7 +117,7 @@ export function Brand({
   return (
     <a
       className="brand"
-      href="#"
+      href="/"
       onClick={(e) => {
         e.preventDefault();
         onClick?.();
@@ -164,63 +164,37 @@ export function Identicon({ seed = "anon" }: { seed?: string }) {
   );
 }
 
-// ─── QR placeholder ───────────────────────────────────────────────────────
-// The prototype draws a deterministic pseudo-QR from the input — it's not a
-// real QR code, just a visual placeholder. Real QR generation comes when we
-// wire actual encryption: at that point we'll swap to a small lib.
+// ─── QR code ─────────────────────────────────────────────────────────────
+// Real QR via the qrcode lib. Renders into a canvas so a phone camera can
+// actually scan and open the paste URL. Error correction level "M" (15%
+// recovery) is the comfortable middle for medium-density URLs like ours.
 
-export function QRCode({ text, size = 116 }: { text: string; size?: number }) {
-  const cells = 25;
-  let h = 2166136261;
-  for (let i = 0; i < text.length; i++) {
-    h ^= text.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  const rng = () => {
-    h ^= h << 13;
-    h ^= h >>> 17;
-    h ^= h << 5;
-    return (h >>> 0) / 4294967295;
-  };
-  const grid: number[] = [];
-  for (let i = 0; i < cells * cells; i++) grid.push(rng() > 0.5 ? 1 : 0);
-  const finder = (cx: number, cy: number) => {
-    for (let y = 0; y < 7; y++)
-      for (let x = 0; x < 7; x++) {
-        const ix = (cy + y) * cells + (cx + x);
-        const inner =
-          y === 0 || y === 6 || x === 0 || x === 6
-            ? 1
-            : y >= 2 && y <= 4 && x >= 2 && x <= 4
-              ? 1
-              : 0;
-        grid[ix] = inner;
-      }
-  };
-  finder(0, 0);
-  finder(cells - 7, 0);
-  finder(0, cells - 7);
-  const cell = size / cells;
+import QR from "qrcode";
+
+export function QRCode({ text, size = 132 }: { text: string; size?: number }) {
+  const canvasRef = React.useRef<HTMLCanvasElement>(null);
+
+  React.useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    void QR.toCanvas(canvas, text, {
+      errorCorrectionLevel: "M",
+      width: size,
+      margin: 1,
+      color: { dark: "#0a0a0a", light: "#ffffff" },
+    }).catch((err) => {
+      console.error("qrcode render failed", err);
+    });
+  }, [text, size]);
+
   return (
-    <svg
+    <canvas
+      ref={canvasRef}
       width={size}
       height={size}
-      viewBox={`0 0 ${size} ${size}`}
-      style={{ background: "white" }}
-    >
-      {grid.map((v, i) =>
-        v ? (
-          <rect
-            key={i}
-            x={(i % cells) * cell}
-            y={Math.floor(i / cells) * cell}
-            width={cell}
-            height={cell}
-            fill="#0a0a0a"
-          />
-        ) : null,
-      )}
-    </svg>
+      style={{ width: size, height: size, borderRadius: "var(--r-sm)" }}
+      aria-label="QR code for paste URL"
+    />
   );
 }
 

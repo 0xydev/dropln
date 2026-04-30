@@ -7,11 +7,9 @@ import { Footer, TopNav } from "./components/TopNav";
 import {
   IconAlert,
   IconFlame,
-  IconHash,
   IconKey,
   IconKeyboard,
   IconPlus,
-  IconSettings,
   IconSun,
 } from "./components/icons";
 import { MOD, ToastProvider, useKeyboard, useToast, type LogomarkVariant } from "./components/primitives";
@@ -117,6 +115,8 @@ function AppInner() {
   // Hydrated from /api/v1/info so the editor warns against a stale local
   // limit. Falls back to a generous default until the request resolves.
   const [maxPasteBytes, setMaxPasteBytes] = React.useState<number>(16 * 1024 * 1024);
+  // Server version, shown as a badge in the topnav.
+  const [serverVersion, setServerVersion] = React.useState<string>("");
   const [decryptedAttachment, setDecryptedAttachment] = React.useState<{
     name: string;
     dataUrl: string;
@@ -126,9 +126,12 @@ function AppInner() {
   // Pull server limits + version on mount.
   React.useEffect(() => {
     void getInfo()
-      .then((info) => setMaxPasteBytes(info.max_paste_bytes))
+      .then((info) => {
+        setMaxPasteBytes(info.max_paste_bytes);
+        setServerVersion(info.version || "");
+      })
       .catch(() => {
-        // ignore; default already set
+        // ignore; defaults already set
       });
   }, []);
 
@@ -405,6 +408,8 @@ function AppInner() {
 
   // ─── command palette ─────────────────────────────────────────────────
 
+  // Palette: real actions only. Demo-state items live behind import.meta.env.DEV
+  // so they're stripped in production builds.
   const cpActions: PaletteAction[] = [
     {
       id: "new",
@@ -413,34 +418,6 @@ function AppInner() {
       label: "New paste",
       kbd: ["N"],
       onSelect: goCreate,
-    },
-    {
-      id: "open",
-      group: "actions",
-      icon: <IconHash size={14} />,
-      label: "Open paste by ID…",
-      hint: "/p/{id}#{key}",
-      onSelect: () => toast({ msg: "Paste lookup is a v2 feature", kind: "warn" }),
-    },
-    {
-      id: "404",
-      group: "actions",
-      icon: <IconAlert size={14} />,
-      label: "Demo: not-found state",
-      onSelect: () => {
-        setRoute({ name: "view" });
-        setViewState("not-found");
-      },
-    },
-    {
-      id: "fail",
-      group: "actions",
-      icon: <IconAlert size={14} />,
-      label: "Demo: decryption failed",
-      onSelect: () => {
-        setRoute({ name: "view" });
-        setViewState("decrypt-fail");
-      },
     },
     {
       id: "theme",
@@ -458,14 +435,70 @@ function AppInner() {
       kbd: [MOD, "/"],
       onSelect: () => setShortcutsOpen(true),
     },
-    {
-      id: "settings",
-      group: "settings",
-      icon: <IconSettings size={14} />,
-      label: "Open settings",
-      onSelect: () => toast({ msg: "Settings: v2", kind: "warn" }),
-    },
   ];
+
+  if (import.meta.env.DEV) {
+    cpActions.push(
+      {
+        id: "demo-burn",
+        group: "actions",
+        icon: <IconFlame size={14} />,
+        label: "Demo: burn-after-read gate",
+        onSelect: () => {
+          setPasteData({
+            id: "demo01234567890a",
+            key: "demo",
+            url: "demo",
+            deleteToken: "demo",
+            expiresAt: Date.now() + 3600e3,
+            createdAt: Date.now(),
+          });
+          setSettings((s) => ({ ...s, burn: true }));
+          setViewState("burn-gate");
+          setRoute({ name: "view" });
+        },
+      },
+      {
+        id: "demo-pw",
+        group: "actions",
+        icon: <IconKey size={14} />,
+        label: "Demo: password gate",
+        onSelect: () => {
+          setPasteData({
+            id: "demo01234567890b",
+            key: "demo",
+            url: "demo",
+            deleteToken: "demo",
+            expiresAt: Date.now() + 3600e3,
+            createdAt: Date.now(),
+          });
+          setSettings((s) => ({ ...s, password: "secret", burn: false }));
+          setViewState("password");
+          setRoute({ name: "view" });
+        },
+      },
+      {
+        id: "demo-404",
+        group: "actions",
+        icon: <IconAlert size={14} />,
+        label: "Demo: not-found state",
+        onSelect: () => {
+          setRoute({ name: "view" });
+          setViewState("not-found");
+        },
+      },
+      {
+        id: "demo-fail",
+        group: "actions",
+        icon: <IconAlert size={14} />,
+        label: "Demo: decryption failed",
+        onSelect: () => {
+          setRoute({ name: "view" });
+          setViewState("decrypt-fail");
+        },
+      },
+    );
+  }
 
   // ─── render ──────────────────────────────────────────────────────────
 
@@ -477,6 +510,7 @@ function AppInner() {
         theme={theme}
         logomark={LOGOMARK}
         onNavigate={() => goCreate()}
+        version={serverVersion}
       />
 
       <main className="main">
