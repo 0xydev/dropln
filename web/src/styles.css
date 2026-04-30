@@ -968,11 +968,55 @@ button { cursor: pointer; }
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
   font-family: var(--font-mono);
   font-size: var(--tx-sm);
   color: var(--fg-1);
+  transition: color 150ms ease-out, background 150ms ease-out;
 }
 .countdown-num { color: var(--fg-0); font-variant-numeric: tabular-nums; }
+
+.countdown.countdown-expired {
+  color: var(--burn);
+  background: color-mix(in oklab, var(--burn) 14%, transparent);
+}
+.countdown.countdown-expired .countdown-num {
+  color: var(--burn);
+  font-weight: 600;
+}
+
+/* Expired-paste banner above the viewer card */
+.expired-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  background: color-mix(in oklab, var(--burn) 9%, var(--bg-1));
+  border: 1px solid color-mix(in oklab, var(--burn) 35%, transparent);
+  border-radius: var(--r-md);
+  font-size: var(--tx-sm);
+  line-height: 1.5;
+}
+.expired-banner-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--burn) 22%, transparent);
+  color: var(--burn);
+}
+.expired-banner-text { display: flex; flex-direction: column; gap: 2px; }
+.expired-banner-text strong {
+  color: var(--burn);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.expired-banner-text span { color: var(--fg-1); }
 
 .view-content-wrap {
   padding: 28px 20px 80px;
@@ -1489,6 +1533,13 @@ button { cursor: pointer; }
   color: var(--fg-0);
 }
 .composer-textarea::placeholder { color: var(--fg-3); }
+.composer-textarea:disabled {
+  cursor: not-allowed;
+  color: var(--fg-3);
+  background: var(--bg-2);
+}
+.composer-disabled .composer-head { opacity: 0.7; }
+.composer-disabled .composer-foot .muted { color: var(--burn); }
 .composer-foot {
   display: flex;
   align-items: center;

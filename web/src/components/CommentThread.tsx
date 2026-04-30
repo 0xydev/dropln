@@ -16,6 +16,8 @@ type CommentThreadProps = {
   /** Raw 32-byte paste key (decoded from URL fragment). */
   pasteKey: Uint8Array;
   password?: string;
+  /** When true, lock the composer — backend FK would reject anyway once the paste row is purged. */
+  isExpired?: boolean;
   onComment?: () => void;
 };
 
@@ -44,6 +46,7 @@ export function CommentThread({
   pasteId,
   pasteKey,
   password = "",
+  isExpired = false,
   onComment,
 }: CommentThreadProps) {
   const [comments, setComments] = React.useState<DecryptedComment[]>([]);
@@ -183,7 +186,7 @@ export function CommentThread({
         </div>
       ))}
 
-      <div className="composer">
+      <div className={"composer" + (isExpired ? " composer-disabled" : "")}>
         <div className="composer-head">
           <IconText size={11} />
           <label>Plain text</label>
@@ -195,10 +198,15 @@ export function CommentThread({
         <textarea
           className="composer-textarea"
           value={draft}
+          disabled={isExpired}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Add a comment…"
+          placeholder={
+            isExpired
+              ? "This paste has expired — comments are closed."
+              : "Add a comment…"
+          }
           onKeyDown={(e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+            if (!isExpired && (e.metaKey || e.ctrlKey) && e.key === "Enter") {
               e.preventDefault();
               void post();
             }
@@ -206,12 +214,18 @@ export function CommentThread({
         />
         <div className="composer-foot">
           <span className="muted mono" style={{ fontSize: 11 }}>
-            <span className="kbd">{MOD}</span> <span className="kbd">↵</span> to post
+            {isExpired ? (
+              <>parent paste expired · server-side comments removed</>
+            ) : (
+              <>
+                <span className="kbd">{MOD}</span> <span className="kbd">↵</span> to post
+              </>
+            )}
           </span>
           <button
             className="btn btn-primary btn-sm"
             onClick={() => void post()}
-            disabled={!draft.trim() || posting}
+            disabled={isExpired || !draft.trim() || posting}
           >
             {posting ? (
               <>

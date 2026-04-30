@@ -36,6 +36,29 @@ function viewerLanguage(s: PasteSettings): string | undefined {
   return undefined;
 }
 
+// ─── Expired banner ──────────────────────────────────────────────────────
+// Shown above the paste content once expires_at has passed. We deliberately
+// do NOT auto-blank the decrypted content: it's already in browser memory,
+// hiding it gives a false sense of security. The honest message is "the
+// server-side copy is gone, save what you need before refreshing."
+
+function ExpiredBanner() {
+  return (
+    <div className="expired-banner" role="alert">
+      <span className="expired-banner-icon">
+        <IconAlert size={14} />
+      </span>
+      <div className="expired-banner-text">
+        <strong>This paste has expired.</strong>
+        <span>
+          The server-side copy was deleted. You're seeing the cached decryption
+          in this tab — refresh and it's gone. Copy anything you still need.
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // ─── Markdown ────────────────────────────────────────────────────────────
 // Renders the decrypted plaintext as HTML when format=markdown.
 // Sanitized first; styling lives in styles.css under .markdown-view.
@@ -509,6 +532,8 @@ function ViewSuccess({
 
   const remaining = pasteData.expiresAt - now;
   const countdown = formatCountdown(remaining);
+  // "never" pastes get Number.MAX_SAFE_INTEGER, so remaining stays huge.
+  const isExpired = remaining <= 0;
 
   const copyContent = () => {
     navigator.clipboard?.writeText(content).catch(() => {});
@@ -543,7 +568,7 @@ function ViewSuccess({
           ></span>{" "}
           Decrypted in browser
         </span>
-        <span className="countdown">
+        <span className={"countdown" + (isExpired ? " countdown-expired" : "")}>
           <IconClock size={12} />
           <span className="countdown-num">{countdown}</span>
         </span>
@@ -586,6 +611,8 @@ function ViewSuccess({
       </div>
 
       <div className="view-content-wrap">
+        {isExpired && <ExpiredBanner />}
+
         <div className={"viewer-card" + (fullscreen ? " is-fullscreen" : "")}>
           <div className="viewer-head">
             <span
@@ -647,6 +674,7 @@ function ViewSuccess({
             pasteId={pasteData.id}
             pasteKey={pasteKey}
             password={settings.password}
+            isExpired={isExpired}
             onComment={onComment}
           />
         )}
