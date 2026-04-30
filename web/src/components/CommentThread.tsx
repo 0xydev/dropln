@@ -26,6 +26,8 @@ type DecryptedComment = {
   body: string;
   /** Unix seconds, server-issued. */
   created: number;
+  /** Optimistic placeholder before server confirms. */
+  pending?: boolean;
 };
 
 function relativeTime(unixSec: number): string {
@@ -88,23 +90,39 @@ export function CommentThread({
   }, [refresh]);
 
   const post = async () => {
-    if (!draft.trim()) return;
+    const body = draft.trim();
+    if (!body) return;
+    // Optimistic insert: temp id is non-hex on purpose so it can never
+    // collide with a server-issued one. Roll back if either encrypt or
+    // upload fails — restore the user's draft so they don't lose typing.
+    const tempId = "tmp_" + Math.random().toString(36).slice(2, 10);
+    const tempComment: DecryptedComment = {
+      id: tempId,
+      parentId: pasteId,
+      body,
+      created: Math.floor(Date.now() / 1000),
+      pending: true,
+    };
+    setComments((cs) => [...cs, tempComment]);
+    setDraft("");
     setPosting(true);
     try {
       const envelope = await encryptComment({
-        body: draft,
+        body,
         pasteId,
         parentId: pasteId,
         pasteKey,
         password,
       });
       await createComment(pasteId, envelope);
-      setDraft("");
-      toast({ msg: "Encrypted comment posted", kind: "ok" });
+      // Refetch replaces the tmp_ entry with the server-confirmed one.
       await refresh();
+      toast({ msg: "Encrypted comment posted", kind: "ok" });
       onComment?.();
     } catch (err) {
       console.error("post comment failed", err);
+      setComments((cs) => cs.filter((c) => c.id !== tempId));
+      setDraft(body); // restore so user can retry
       toast({ msg: "Failed to post comment", kind: "warn" });
     } finally {
       setPosting(false);
@@ -144,7 +162,10 @@ export function CommentThread({
       )}
 
       {comments.map((c) => (
-        <div key={c.id} className="comment">
+        <div
+          key={c.id}
+          className={"comment" + (c.pending ? " comment-pending" : "")}
+        >
           <Identicon seed={c.id} />
           <div className="comment-main">
             <div className="comment-head">
@@ -159,8 +180,14 @@ export function CommentThread({
                 onMouseLeave={() => setHoverTs(null)}
                 style={{ position: "relative" }}
               >
-                {relativeTime(c.created)}
-                {hoverTs === c.id && (
+                {c.pending ? (
+                  <>
+                    <span className="spinner spinner-sm" /> sending…
+                  </>
+                ) : (
+                  relativeTime(c.created)
+                )}
+                {!c.pending && hoverTs === c.id && (
                   <span
                     className="tooltip"
                     style={{ top: "calc(100% + 4px)", left: 0 }}

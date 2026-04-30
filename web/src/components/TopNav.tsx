@@ -1,4 +1,4 @@
-import { IconGithub, IconMoon, IconSearch, IconSun } from "./icons";
+import { IconGithub, IconHistory, IconMoon, IconSearch, IconSun } from "./icons";
 import { Brand, MOD, type LogomarkVariant } from "./primitives";
 
 const REPO_URL = "https://github.com/0xydev/ulakbin";
@@ -9,6 +9,7 @@ type TopNavProps = {
   theme: "dark" | "light";
   logomark: LogomarkVariant;
   onNavigate: (name: string) => void;
+  onOpenHistory: () => void;
   /** Server version from /api/v1/info; empty until the request resolves. */
   version?: string;
 };
@@ -19,6 +20,7 @@ export function TopNav({
   theme,
   logomark,
   onNavigate,
+  onOpenHistory,
   version,
 }: TopNavProps) {
   return (
@@ -49,6 +51,13 @@ export function TopNav({
       </button>
 
       <div className="nav-links">
+        <button
+          className="nav-link"
+          onClick={onOpenHistory}
+          title="Your local paste history"
+        >
+          <IconHistory size={13} /> History
+        </button>
         <a
           className="nav-link"
           href={REPO_URL}

@@ -166,6 +166,19 @@ export function CommandPalette({ open, onClose, actions }: Props) {
   );
 }
 
+// Refined shortcut help. Lists only commands that are actually wired
+// (no aspirational entries) and groups them by *what surface they act on*
+// so users can scan to "I'm in the editor — what can I do here?".
+
+import {
+  IconCode,
+  IconLock,
+  IconSettings,
+} from "./icons";
+
+type Shortcut = { label: string; keys: string[]; hint?: string };
+type ShortcutGroup = { title: string; icon: React.ReactNode; items: Shortcut[] };
+
 export function ShortcutsHelp({
   open,
   onClose,
@@ -174,33 +187,45 @@ export function ShortcutsHelp({
   onClose: () => void;
 }) {
   if (!open) return null;
-  const groups = [
+  const groups: ShortcutGroup[] = [
+    {
+      title: "Anywhere",
+      icon: <IconKeyboard size={13} />,
+      items: [
+        { label: "Command palette", keys: [MOD, "K"] },
+        { label: "Show this dialog", keys: [MOD, "/"] },
+        { label: "Toggle theme", keys: [MOD, "Shift", "T"] },
+        { label: "Dismiss / close", keys: ["Esc"] },
+      ],
+    },
     {
       title: "Editor",
+      icon: <IconCode size={13} />,
       items: [
-        { l: "Create paste", k: [MOD, "↵"] },
-        { l: "Toggle burn-after-read", k: [MOD, "B"] },
-        { l: "Toggle password", k: [MOD, "P"] },
-        { l: "Insert sample", k: [MOD, "I"] },
+        { label: "Create encrypted paste", keys: [MOD, "↵"] },
+        { label: "Find / replace", keys: [MOD, "F"] },
+        { label: "Comment toggle (per-language)", keys: [MOD, "/"] },
+        { label: "Undo / redo", keys: [MOD, "Z"], hint: "+ Shift to redo" },
+        { label: "Multi-cursor: select next match", keys: [MOD, "D"] },
       ],
     },
     {
-      title: "Navigation",
+      title: "View",
+      icon: <IconLock size={13} />,
       items: [
-        { l: "Command palette", k: [MOD, "K"] },
-        { l: "Shortcuts help", k: [MOD, "/"] },
-        { l: "Toggle theme", k: [MOD, "Shift", "T"] },
+        { label: "Copy URL", keys: [MOD, "C"], hint: "when no text selected" },
+        { label: "Toggle fullscreen", keys: ["Esc"], hint: "to exit" },
       ],
     },
     {
-      title: "Share view",
+      title: "Comments",
+      icon: <IconSettings size={13} />,
       items: [
-        { l: "Copy URL", k: [MOD, "C"] },
-        { l: "Copy paste content", k: [MOD, "Shift", "C"] },
-        { l: "Open paste", k: [MOD, "O"] },
+        { label: "Post comment", keys: [MOD, "↵"], hint: "from composer" },
       ],
     },
   ];
+
   return (
     <div
       className="cp-overlay"
@@ -208,35 +233,49 @@ export function ShortcutsHelp({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="cp-card" style={{ maxWidth: 520 }}>
-        <div className="cp-search" style={{ borderBottom: "1px solid var(--line-1)" }}>
-          <IconKeyboard size={16} />
-          <span style={{ flex: 1, fontSize: 14 }}>Keyboard shortcuts</span>
+      <div className="cp-card shortcuts-card" style={{ maxWidth: 560 }}>
+        <div className="cp-search shortcuts-head">
+          <IconKeyboard size={15} />
+          <span>Keyboard shortcuts</span>
+          <span style={{ flex: 1 }} />
           <button
             className="btn btn-ghost btn-icon btn-sm"
             onClick={onClose}
+            aria-label="Close"
           >
             <IconX size={12} />
           </button>
         </div>
-        <div style={{ padding: "8px 6px 12px" }}>
+        <div className="shortcuts-body">
           {groups.map((g, gi) => (
-            <div key={gi}>
-              <div className="cp-section">{g.title}</div>
-              {g.items.map((it, i) => (
-                <div key={i} className="cp-item" style={{ cursor: "default" }}>
-                  <span style={{ flex: 1 }}>{it.l}</span>
-                  <span className="cp-item-shortcut">
-                    {it.k.map((k, j) => (
-                      <span key={j} className="kbd">
-                        {k}
-                      </span>
-                    ))}
-                  </span>
-                </div>
-              ))}
+            <div className="shortcuts-group" key={gi}>
+              <div className="shortcuts-group-head">
+                <span className="shortcuts-group-icon">{g.icon}</span>
+                {g.title}
+              </div>
+              <div className="shortcuts-list">
+                {g.items.map((it, i) => (
+                  <div className="shortcuts-row" key={i}>
+                    <span className="shortcuts-label">
+                      {it.label}
+                      {it.hint && <em className="shortcuts-hint">{it.hint}</em>}
+                    </span>
+                    <span className="shortcuts-keys">
+                      {it.keys.map((k, j) => (
+                        <span key={j} className="kbd">
+                          {k}
+                        </span>
+                      ))}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
+        </div>
+        <div className="shortcuts-foot">
+          Most editor shortcuts are CodeMirror 6 standard — they work the same
+          as in VS Code.
         </div>
       </div>
     </div>

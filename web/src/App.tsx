@@ -7,6 +7,7 @@ import { Footer, TopNav } from "./components/TopNav";
 import {
   IconAlert,
   IconFlame,
+  IconHistory,
   IconKey,
   IconKeyboard,
   IconPlus,
@@ -31,13 +32,20 @@ import {
 } from "./crypto";
 import type { Formatter } from "./crypto/format";
 import { ApiError, createPaste, getInfo, readPaste } from "./api";
+import { addLocalHistory, type LocalHistoryEntry } from "./lib/local-history";
+import { HistoryPage } from "./components/HistoryPage";
+import { IconUpload } from "./components/icons";
 
 // ─── Design tokens (locked-in choices) ───────────────────────────────────
 // Accent / palette live in styles.css now; both themes carry their own
 // values so JS doesn't need to push CSS variables anymore.
 const LOGOMARK: LogomarkVariant = "lock";
 
-type Route = { name: "create" } | { name: "success" } | { name: "view" };
+type Route =
+  | { name: "create" }
+  | { name: "success" }
+  | { name: "view" }
+  | { name: "history" };
 
 // Settings format ↔ envelope formatter mapping. The UI uses short names; the
 // backend (and Format v2) uses the PrivateBin convention.
@@ -59,6 +67,7 @@ const FORMATTER_TO_SETTING: Record<Formatter, PasteSettings["format"]> = {
 
 type ParsedURL =
   | { kind: "create" }
+  | { kind: "history" }
   | { kind: "view"; id: string; keyB64Url: string; warnFirst: boolean };
 
 // 32-byte key → base64url no-padding = 43 chars. A "warn before reading"
@@ -68,6 +77,7 @@ type ParsedURL =
 const KEY_FRAGMENT_LEN = 43;
 
 function parseURL(): ParsedURL {
+  if (window.location.pathname === "/history") return { kind: "history" };
   const m = window.location.pathname.match(/^\/p\/([0-9a-f]{16})\/?$/);
   if (!m) return { kind: "create" };
   const hash = window.location.hash.slice(1);
@@ -103,9 +113,17 @@ function initialTheme(): "dark" | "light" {
 
 function AppInner() {
   const [theme, setTheme] = React.useState<"dark" | "light">(initialTheme);
-  const [route, setRoute] = React.useState<Route>(() =>
-    parseURL().kind === "view" ? { name: "view" } : { name: "create" },
-  );
+  const [route, setRoute] = React.useState<Route>(() => {
+    const p = parseURL();
+    if (p.kind === "view") return { name: "view" };
+    if (p.kind === "history") return { name: "history" };
+    return { name: "create" };
+  });
+  const [windowDragging, setWindowDragging] = React.useState(false);
+  const [showOnboarding, setShowOnboarding] = React.useState(() => {
+    if (typeof window === "undefined") return false;
+    return !window.localStorage.getItem("ulakbin.onboarded");
+  });
   const [paletteOpen, setPaletteOpen] = React.useState(false);
   const [shortcutsOpen, setShortcutsOpen] = React.useState(false);
   const [editorContent, setEditorContent] = React.useState("");
@@ -171,6 +189,8 @@ function AppInner() {
       const p = parseURL();
       if (p.kind === "create") {
         setRoute({ name: "create" });
+      } else if (p.kind === "history") {
+        setRoute({ name: "history" });
       } else {
         void enterView(p.id, p.keyB64Url, p.warnFirst);
       }
@@ -179,6 +199,47 @@ function AppInner() {
     return () => window.removeEventListener("popstate", onPop);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Window-level drag-drop. Tracks enter/leave depth so nested drag events
+  // (entering a child element after the document) don't flicker the overlay.
+  React.useEffect(() => {
+    let depth = 0;
+    const hasFiles = (e: DragEvent) =>
+      Array.from(e.dataTransfer?.types || []).includes("Files");
+    const onEnter = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      depth++;
+      if (depth === 1) setWindowDragging(true);
+    };
+    const onLeave = (e: DragEvent) => {
+      e.preventDefault();
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) setWindowDragging(false);
+    };
+    const onOver = (e: DragEvent) => {
+      if (hasFiles(e)) e.preventDefault();
+    };
+    const onDrop = (e: DragEvent) => {
+      depth = 0;
+      setWindowDragging(false);
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      if (route.name !== "create") return;
+      const f = e.dataTransfer?.files[0];
+      if (f) setAttachedFile({ name: f.name, size: f.size, file: f });
+    };
+    window.addEventListener("dragenter", onEnter);
+    window.addEventListener("dragleave", onLeave);
+    window.addEventListener("dragover", onOver);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("dragenter", onEnter);
+      window.removeEventListener("dragleave", onLeave);
+      window.removeEventListener("dragover", onOver);
+      window.removeEventListener("drop", onDrop);
+    };
+  }, [route.name]);
 
   useKeyboard(
     React.useCallback(
@@ -373,14 +434,36 @@ function AppInner() {
 
     const fragment = settings.burn ? "-" + result.keyB64Url : result.keyB64Url;
     const url = `${window.location.origin}/p/${response.id}#${fragment}`;
+    const expiresAtMs = Date.now() + expiryToMs(settings.expiry);
     setPasteData({
       id: response.id,
       key: result.keyB64Url,
       url,
       deleteToken: response.delete_token,
-      expiresAt: Date.now() + expiryToMs(settings.expiry),
+      expiresAt: expiresAtMs,
       createdAt: Date.now(),
     });
+    // Persist to localStorage so /history can show + revoke later.
+    const localEntry: LocalHistoryEntry = {
+      id: response.id,
+      key: result.keyB64Url,
+      url,
+      deleteToken: response.delete_token,
+      server: window.location.origin,
+      expiresAt: settings.expiry === "never"
+        ? null
+        : Math.floor(expiresAtMs / 1000),
+      createdAt: Math.floor(Date.now() / 1000),
+      burn: settings.burn,
+    };
+    addLocalHistory(localEntry);
+
+    // Mark onboarding complete on first successful create.
+    if (showOnboarding) {
+      setShowOnboarding(false);
+      try { window.localStorage.setItem("ulakbin.onboarded", "1"); } catch {}
+    }
+
     setRoute({ name: "success" });
   };
 
@@ -409,6 +492,22 @@ function AppInner() {
     setViewSettings(null);
   };
 
+  const goHistory = () => {
+    pushURL("/history");
+    setRoute({ name: "history" });
+  };
+
+  const openHistoryEntry = (e: LocalHistoryEntry) => {
+    // Strip the origin if it matches our own; otherwise navigate fully.
+    if (e.server && e.server !== window.location.origin) {
+      window.location.href = e.url;
+      return;
+    }
+    const fragment = e.burn ? "-" + e.key : e.key;
+    pushURL(`/p/${e.id}#${fragment}`);
+    void enterView(e.id, e.key, e.burn);
+  };
+
   const onUnlock = (password: string) => {
     if (!pasteData) return;
     if (pendingEnvelope) {
@@ -432,8 +531,14 @@ function AppInner() {
       group: "actions",
       icon: <IconPlus size={14} />,
       label: "New paste",
-      kbd: ["N"],
       onSelect: goCreate,
+    },
+    {
+      id: "history",
+      group: "actions",
+      icon: <IconHistory size={14} />,
+      label: "Your pastes (local history)",
+      onSelect: goHistory,
     },
     {
       id: "theme",
@@ -526,21 +631,29 @@ function AppInner() {
         theme={theme}
         logomark={LOGOMARK}
         onNavigate={() => goCreate()}
+        onOpenHistory={goHistory}
         version={serverVersion}
       />
 
       <main className="main">
         {route.name === "create" && (
-          <CreatePaste
-            onCreated={handleCreate}
-            settings={settings}
-            setSettings={setSettings}
-            content={editorContent}
-            setContent={setEditorContent}
-            attachedFile={attachedFile}
-            setAttachedFile={setAttachedFile}
-            maxPasteBytes={maxPasteBytes}
-          />
+          <>
+            <CreatePaste
+              onCreated={handleCreate}
+              settings={settings}
+              setSettings={setSettings}
+              content={editorContent}
+              setContent={setEditorContent}
+              attachedFile={attachedFile}
+              setAttachedFile={setAttachedFile}
+              maxPasteBytes={maxPasteBytes}
+              showOnboarding={showOnboarding && !editorContent && !attachedFile}
+            />
+          </>
+        )}
+
+        {route.name === "history" && (
+          <HistoryPage onCreate={goCreate} onOpen={openHistoryEntry} />
         )}
 
         {route.name === "success" && pasteData && (
@@ -574,6 +687,16 @@ function AppInner() {
         onClose={() => setPaletteOpen(false)}
         actions={cpActions}
       />
+
+      {windowDragging && route.name === "create" && (
+        <div className="window-drop-overlay" aria-hidden="true">
+          <div className="window-drop-overlay-card">
+            <IconUpload size={28} />
+            <strong>Drop to encrypt &amp; attach</strong>
+            <span>Files are encrypted in your browser before upload.</span>
+          </div>
+        </div>
+      )}
       <ShortcutsHelp
         open={shortcutsOpen}
         onClose={() => setShortcutsOpen(false)}

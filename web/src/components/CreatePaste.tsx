@@ -128,6 +128,8 @@ type CreatePasteProps = {
   setAttachedFile: (f: AttachedFile | null) => void;
   /** Server's accepted POST body size limit (bytes). */
   maxPasteBytes: number;
+  /** First-time visit + empty editor → show keyboard hint ghost. */
+  showOnboarding?: boolean;
 };
 
 export function CreatePaste({
@@ -139,6 +141,7 @@ export function CreatePaste({
   attachedFile,
   setAttachedFile,
   maxPasteBytes,
+  showOnboarding,
 }: CreatePasteProps) {
   const [drawerOpen, setDrawerOpen] = React.useState(true);
   const [showPwField, setShowPwField] = React.useState(false);
@@ -457,6 +460,14 @@ export function CreatePaste({
               <div className="mono" style={{ color: "var(--fg-3)", fontSize: 11 }}>
                 PBKDF2 · 100,000 iterations
               </div>
+            </div>
+          )}
+
+          {showOnboarding && !encrypting && !dragOver && (
+            <div className="onboarding-ghost" aria-hidden="true">
+              <span className="kbd">{MOD}</span>
+              <span className="kbd">↵</span>
+              <span>to encrypt &amp; share</span>
             </div>
           )}
         </div>

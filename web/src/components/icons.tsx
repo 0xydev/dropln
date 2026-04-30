@@ -48,6 +48,7 @@ export const IconKeyboard = (p: IconProps) => <svg {...baseProps(p)}><rect x="2"
 export const IconFile = (p: IconProps) => <svg {...baseProps(p)}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>;
 export const IconUpload = (p: IconProps) => <svg {...baseProps(p)}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><path d="M12 3v12"/></svg>;
 export const IconDownload = (p: IconProps) => <svg {...baseProps(p)}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><path d="M12 15V3"/></svg>;
+export const IconHistory = (p: IconProps) => <svg {...baseProps(p)}><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>;
 export const IconEye = (p: IconProps) => <svg {...baseProps(p)}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>;
 export const IconEyeOff = (p: IconProps) => <svg {...baseProps(p)}><path d="M9.9 4.2A10 10 0 0 1 12 4c6.5 0 10 7 10 7a14 14 0 0 1-2.4 3.5"/><path d="M14.1 14.1a3 3 0 0 1-4.2-4.2"/><path d="M17.4 17.4A10 10 0 0 1 12 19C5.5 19 2 12 2 12a14 14 0 0 1 4.6-5.6"/><path d="m1 1 22 22"/></svg>;
 export const IconCode = (p: IconProps) => <svg {...baseProps(p)}><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>;
