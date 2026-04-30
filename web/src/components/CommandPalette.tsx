@@ -159,7 +159,7 @@ export function CommandPalette({ open, onClose, actions }: Props) {
           <span>
             <span className="kbd">esc</span> close
           </span>
-          <span style={{ marginLeft: "auto", color: "var(--fg-3)" }}>ulakb.in</span>
+          <span style={{ marginLeft: "auto", color: "var(--fg-3)" }}>dropln</span>
         </div>
       </div>
     </div>

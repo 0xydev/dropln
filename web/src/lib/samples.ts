@@ -43,10 +43,10 @@ export async function createPaste(content: string, opts: PasteOptions) {
   return \`/p/\${id}#\${await exportKey(key)}\`;
 }`,
   env: `# .env.production
-DATABASE_URL=postgresql://app:hunter2@db.internal:5432/ulakbin
+DATABASE_URL=postgresql://app:hunter2@db.internal:5432/dropln
 REDIS_URL=redis://cache.internal:6379/0
 SESSION_SECRET=2f9c1e7a44b6e8d310f5ba9e72cd31a87b5f0e4d92c8a16f3e7d50b9c4a18f6d
-S3_BUCKET=ulakbin-prod-objects
+S3_BUCKET=dropln-prod-objects
 S3_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
 STRIPE_SECRET_KEY=sk_live_REDACTED_BEFORE_COMMIT_PLEASE
 SENTRY_DSN=https://abc123@sentry.io/4506

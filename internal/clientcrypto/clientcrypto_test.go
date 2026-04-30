@@ -4,12 +4,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/0xydev/ulakbin/internal/paste"
+	"github.com/0xydev/dropln/internal/paste"
 )
 
 func TestRoundTrip_Basic(t *testing.T) {
 	res, err := Encrypt(EncryptOpts{
-		Plaintext: PlainPaste{Paste: "hello ulakbin"},
+		Plaintext: PlainPaste{Paste: "hello dropln"},
 		Expire:    "5min",
 		Formatter: paste.FormatterPlaintext,
 	})
@@ -21,7 +21,7 @@ func TestRoundTrip_Basic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decrypt: %v", err)
 	}
-	if got.Paste != "hello ulakbin" {
+	if got.Paste != "hello dropln" {
 		t.Errorf("paste mismatch: got %q", got.Paste)
 	}
 }

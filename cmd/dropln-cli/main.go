@@ -1,12 +1,12 @@
-// ulakbin — CLI client for the ulakbin paste server.
+// dropln — CLI client for the dropln paste server.
 //
 // Common flows:
 //
-//   echo "hello" | ulakbin                    # stdin → URL
-//   cat error.log | ulakbin --burn            # one-time-read URL
-//   ulakbin --file diagram.png                # attachment → URL
-//   ulakbin abc123def456789a#KEY              # fetch & decrypt → stdout
-//   ulakbin https://ulakb.example.com/p/abc/#KEY
+//   echo "hello" | dropln                    # stdin → URL
+//   cat error.log | dropln --burn            # one-time-read URL
+//   dropln --file diagram.png                # attachment → URL
+//   dropln abc123def456789a#KEY              # fetch & decrypt → stdout
+//   dropln https://dropln.example.com/p/abc/#KEY
 //
 // All crypto happens here in the CLI; the server only sees ciphertext.
 package main
@@ -30,8 +30,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/0xydev/ulakbin/internal/clientcrypto"
-	"github.com/0xydev/ulakbin/internal/paste"
+	"github.com/0xydev/dropln/internal/clientcrypto"
+	"github.com/0xydev/dropln/internal/paste"
 )
 
 // Version is overridable at build time:
@@ -39,17 +39,17 @@ import (
 //	go build -ldflags "-X main.Version=$(git describe --tags --always)"
 var Version = "dev"
 
-const helpText = `ulakbin — encrypted ephemeral paste
+const helpText = `dropln — encrypted ephemeral paste
 
 USAGE
-  ulakbin                              read paste content from stdin → URL
-  ulakbin <ref>                        fetch & decrypt (ref = id#key or full URL)
-  ulakbin --file PATH                  attach a file → URL
-  ulakbin delete <id> [token]          delete a paste (uses cached token if omitted)
-  ulakbin list                         list pastes you've created locally
+  dropln                              read paste content from stdin → URL
+  dropln <ref>                        fetch & decrypt (ref = id#key or full URL)
+  dropln --file PATH                  attach a file → URL
+  dropln delete <id> [token]          delete a paste (uses cached token if omitted)
+  dropln list                         list pastes you've created locally
 
 CREATE FLAGS
-  --server URL          server endpoint (env ULAKBIN_SERVER, default http://localhost:8080)
+  --server URL          server endpoint (env DROPLN_SERVER, default http://localhost:8080)
   --expire WIN          5min|10min|1hour|1day|1week|1month|1year|never (default 1day)
   --burn                one-time-read paste (URL gets #- warning prefix)
   --password PW         password protect (combined with URL key via PBKDF2)
@@ -76,15 +76,15 @@ GLOBAL
   --help, -h            this help
 
 ENV
-  ULAKBIN_SERVER        default server URL when --server is not given
-  ULAKBIN_HISTORY       custom history file path (default: $XDG_CONFIG_HOME/ulakbin/history.json)
+  DROPLN_SERVER        default server URL when --server is not given
+  DROPLN_HISTORY       custom history file path (default: $XDG_CONFIG_HOME/dropln/history.json)
 `
 
 func main() {
 	cfg, action, err := parseArgs(os.Args[1:])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
-		fmt.Fprintln(os.Stderr, "run `ulakbin --help` for usage.")
+		fmt.Fprintln(os.Stderr, "run `dropln --help` for usage.")
 		os.Exit(2)
 	}
 
@@ -92,7 +92,7 @@ func main() {
 	case actionHelp:
 		fmt.Print(helpText)
 	case actionVersion:
-		fmt.Println("ulakbin", Version)
+		fmt.Println("dropln", Version)
 	case actionFetch:
 		if err := fetchAndPrint(cfg); err != nil {
 			fail(err)
@@ -156,7 +156,7 @@ const (
 )
 
 func parseArgs(args []string) (*runConfig, action, error) {
-	fs := flag.NewFlagSet("ulakbin", flag.ContinueOnError)
+	fs := flag.NewFlagSet("dropln", flag.ContinueOnError)
 	fs.SetOutput(io.Discard) // we render our own help
 
 	cfg := &runConfig{}
@@ -196,7 +196,7 @@ func parseArgs(args []string) (*runConfig, action, error) {
 	cfg.quiet = quietL || quietS
 	cfg.format = paste.Formatter(formatStr)
 	if cfg.server == "" {
-		cfg.server = os.Getenv("ULAKBIN_SERVER")
+		cfg.server = os.Getenv("DROPLN_SERVER")
 	}
 	if cfg.server == "" {
 		cfg.server = "http://localhost:8080"
@@ -220,7 +220,7 @@ func parseArgs(args []string) (*runConfig, action, error) {
 			return cfg, actionList, nil
 		case "delete", "rm":
 			if len(rest) < 2 {
-				return nil, 0, fmt.Errorf("`%s` needs a paste id (e.g. `ulakbin %s abc123def456789a`)", rest[0], rest[0])
+				return nil, 0, fmt.Errorf("`%s` needs a paste id (e.g. `dropln %s abc123def456789a`)", rest[0], rest[0])
 			}
 			cfg.deleteID = rest[1]
 			if len(rest) >= 3 && cfg.deleteToken == "" {

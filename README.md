@@ -1,4 +1,4 @@
-# ulakbin
+# dropln
 
 A zero-knowledge encrypted paste tool. Single Go binary; modern web UI;
 client-side AES-256-GCM with PBKDF2 key derivation. The server stores only
@@ -42,8 +42,8 @@ make build
 
 # 3. Run
 make run        # or:
-ULAKBIN_DATABASE_URL='postgres://ulakbin:ulakbin@localhost:5432/ulakbin?sslmode=disable' \
-  ./bin/ulakbin
+DROPLN_DATABASE_URL='postgres://dropln:dropln@localhost:5432/dropln?sslmode=disable' \
+  ./bin/dropln
 ```
 
 The server listens on `:8080`. Open `http://localhost:8080/`.
@@ -52,7 +52,7 @@ For frontend development with hot-reload, run the Go backend on `:8080` and
 Vite on `:5173` (which proxies `/api/*` to the backend):
 
 ```sh
-ULAKBIN_DATABASE_URL='postgres://...' ./bin/ulakbin &
+DROPLN_DATABASE_URL='postgres://...' ./bin/dropln &
 make dev   # → http://localhost:5173
 ```
 
@@ -62,13 +62,13 @@ All settings are environment variables.
 
 | Variable | Default | Notes |
 |---|---|---|
-| `ULAKBIN_DATABASE_URL` | (required) | `postgres://user:pass@host:5432/dbname` |
-| `ULAKBIN_ADDR` | `:8080` | Listen address |
-| `ULAKBIN_MAX_PASTE_BYTES` | `33554432` (32 MiB) | POST body size limit. Compound base64 means a 32 MiB body fits ~18 MiB of raw attachment. |
-| `ULAKBIN_RATE_LIMIT_PER_MIN` | `10` | Per-IP create rate limit |
-| `ULAKBIN_RATE_LIMIT_BURST` | `5` | Burst capacity |
-| `ULAKBIN_TRUST_PROXY` | `false` | If `true`, honor `X-Forwarded-For` / `X-Real-IP`. Only enable behind a reverse proxy that strips spoofed values. |
-| `ULAKBIN_HSTS` | `false` | Send `Strict-Transport-Security` header. Only enable when serving over HTTPS. |
+| `DROPLN_DATABASE_URL` | (required) | `postgres://user:pass@host:5432/dbname` |
+| `DROPLN_ADDR` | `:8080` | Listen address |
+| `DROPLN_MAX_PASTE_BYTES` | `33554432` (32 MiB) | POST body size limit. Compound base64 means a 32 MiB body fits ~18 MiB of raw attachment. |
+| `DROPLN_RATE_LIMIT_PER_MIN` | `10` | Per-IP create rate limit |
+| `DROPLN_RATE_LIMIT_BURST` | `5` | Burst capacity |
+| `DROPLN_TRUST_PROXY` | `false` | If `true`, honor `X-Forwarded-For` / `X-Real-IP`. Only enable behind a reverse proxy that strips spoofed values. |
+| `DROPLN_HSTS` | `false` | Send `Strict-Transport-Security` header. Only enable when serving over HTTPS. |
 
 Migrations run automatically on startup (embedded via `embed.FS`).
 
@@ -137,7 +137,7 @@ For comments: `adata` is the flat cipher-params (8 elements), and
 
 ```
 .
-├── cmd/ulakbin/main.go                   # entry: graceful shutdown, slog
+├── cmd/dropln/main.go                   # entry: graceful shutdown, slog
 ├── internal/
 │   ├── config/                           # env-driven config
 │   ├── paste/                            # Format v2 spec + ID generation
@@ -167,49 +167,49 @@ For comments: `adata` is the flat cipher-params (8 elements), and
 
 ## CLI
 
-`bin/ulakbin-cli` is a stand-alone client. Same crypto module as the web UI;
+`bin/dropln-cli` is a stand-alone client. Same crypto module as the web UI;
 server still only sees ciphertext. Built by `make build-cli` (or `make build`,
 which builds everything).
 
 ```sh
 make build-cli
-sudo install -m 0755 bin/ulakbin-cli /usr/local/bin/ulakbin   # optional
+sudo install -m 0755 bin/dropln-cli /usr/local/bin/dropln   # optional
 
 # server defaults to http://localhost:8080 — point elsewhere with --server or
-# the ULAKBIN_SERVER env var:
-export ULAKBIN_SERVER=https://ulakb.example.com
+# the DROPLN_SERVER env var:
+export DROPLN_SERVER=https://dropln.example.com
 ```
 
 ### Common flows
 
 ```sh
 # stdin → URL
-echo "hello" | ulakbin
-cat error.log | ulakbin --expire=1hour
+echo "hello" | dropln
+cat error.log | dropln --expire=1hour
 
 # one-time-read paste (URL gets a #- warning prefix; link previewers
 # can't silently consume it)
-git diff | ulakbin --burn
+git diff | dropln --burn
 
 # password protected
-echo "AKIA..." | ulakbin --password="$PASSWORD"
+echo "AKIA..." | dropln --password="$PASSWORD"
 
 # attach a file (separate from stdin)
-ulakbin --file diagram.png
+dropln --file diagram.png
 
 # fetch & decrypt to stdout
-ulakbin abc123def456789a#KEY
-ulakbin https://ulakb.example.com/p/abc123def456789a#KEY
+dropln abc123def456789a#KEY
+dropln https://dropln.example.com/p/abc123def456789a#KEY
 
 # fetch with password
-ulakbin --password="$PASSWORD" abc123def456789a#KEY
+dropln --password="$PASSWORD" abc123def456789a#KEY
 
 # write fetched content to file (saves attachment as the original
 # filename if present, else writes paste text)
-ulakbin --output recovered.log abc123def456789a#KEY
+dropln --output recovered.log abc123def456789a#KEY
 
 # pipe-friendly: print only the URL on success
-echo "x" | ulakbin -q
+echo "x" | dropln -q
 ```
 
 `--copy` also pushes the URL to the clipboard (`pbcopy` on macOS,
@@ -231,7 +231,7 @@ cp .env.example .env
 # fill in POSTGRES_PASSWORD (e.g. `openssl rand -base64 24`)
 
 docker compose up -d --build
-docker compose logs -f ulakbin
+docker compose logs -f dropln
 ```
 
 ### Reverse proxy
@@ -239,25 +239,25 @@ docker compose logs -f ulakbin
 **Caddy** (auto Let's Encrypt, single-line config):
 
 ```Caddyfile
-ulakb.example.com {
+dropln.example.com {
     reverse_proxy 127.0.0.1:8080
     encode zstd gzip
 }
 ```
 
-After putting Caddy in front, set `ULAKBIN_HSTS=true` and
-`ULAKBIN_TRUST_PROXY=true` in `.env`, then `docker compose up -d`.
+After putting Caddy in front, set `DROPLN_HSTS=true` and
+`DROPLN_TRUST_PROXY=true` in `.env`, then `docker compose up -d`.
 
 **nginx** equivalent:
 
 ```nginx
 server {
     listen 443 ssl http2;
-    server_name ulakb.example.com;
-    ssl_certificate     /etc/letsencrypt/live/ulakb.example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/ulakb.example.com/privkey.pem;
+    server_name dropln.example.com;
+    ssl_certificate     /etc/letsencrypt/live/dropln.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/dropln.example.com/privkey.pem;
 
-    client_max_body_size 64m;   # > ULAKBIN_MAX_PASTE_BYTES
+    client_max_body_size 64m;   # > DROPLN_MAX_PASTE_BYTES
 
     location / {
         proxy_pass http://127.0.0.1:8080;
@@ -274,14 +274,14 @@ Postgres data lives in the `postgres-data` named volume. Snapshot it
 however your team handles backups; for a quick `pg_dump`:
 
 ```sh
-docker compose exec postgres pg_dump -U ulakbin -d ulakbin -Fc > ulakbin-$(date +%F).dump
+docker compose exec postgres pg_dump -U dropln -d dropln -Fc > dropln-$(date +%F).dump
 ```
 
 ### Updating
 
 ```sh
 git pull
-docker compose up -d --build ulakbin   # rebuild + restart only the app
+docker compose up -d --build dropln   # rebuild + restart only the app
 ```
 
 Migrations run automatically on startup (idempotent — `schema_migrations`
@@ -305,10 +305,12 @@ Coverage:
 - 4 server integration tests (info, 413, security headers, full HTTP
   round-trip)
 
-## Why "ulakbin"?
+## Why "dropln"?
 
-Turkish wordplay: *ulak* (messenger / courier) + *bin* (the PrivateBin /
-PasteBin suffix).
+"Drop a line" — the English idiom for sending a quick note — collapsed
+into a CLI-shaped name. The `ln` suffix nods to `\n` (the line break)
+and the `ln` Unix command, both of which made sense for a tool whose
+core verb is `cat secret.txt | dropln`.
 
 ## License
 

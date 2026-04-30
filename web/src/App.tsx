@@ -39,7 +39,7 @@ import { IconUpload } from "./components/icons";
 // ─── Design tokens (locked-in choices) ───────────────────────────────────
 // Accent / palette live in styles.css now; both themes carry their own
 // values so JS doesn't need to push CSS variables anymore.
-const LOGOMARK: LogomarkVariant = "lock";
+const LOGOMARK: LogomarkVariant = "drop";
 
 type Route =
   | { name: "create" }
@@ -105,7 +105,7 @@ function pushURL(path: string) {
 // guarded for environments without window.
 function initialTheme(): "dark" | "light" {
   if (typeof window === "undefined") return "dark";
-  const stored = window.localStorage.getItem("ulakbin.theme");
+  const stored = window.localStorage.getItem("dropln.theme");
   if (stored === "dark" || stored === "light") return stored;
   if (window.matchMedia?.("(prefers-color-scheme: light)").matches) return "light";
   return "dark";
@@ -122,7 +122,7 @@ function AppInner() {
   const [windowDragging, setWindowDragging] = React.useState(false);
   const [showOnboarding, setShowOnboarding] = React.useState(() => {
     if (typeof window === "undefined") return false;
-    return !window.localStorage.getItem("ulakbin.onboarded");
+    return !window.localStorage.getItem("dropln.onboarded");
   });
   const [paletteOpen, setPaletteOpen] = React.useState(false);
   const [shortcutsOpen, setShortcutsOpen] = React.useState(false);
@@ -173,7 +173,7 @@ function AppInner() {
     const root = document.documentElement;
     root.classList.toggle("theme-light", theme === "light");
     try {
-      window.localStorage.setItem("ulakbin.theme", theme);
+      window.localStorage.setItem("dropln.theme", theme);
     } catch {
       // private browsing / disabled storage — ignore
     }
@@ -182,10 +182,10 @@ function AppInner() {
   // Tab title per route — helps users juggling many tabs.
   React.useEffect(() => {
     const titles: Record<Route["name"], string> = {
-      create: "ulakbin — encrypted ephemeral paste",
-      success: "Encrypted · ulakbin",
-      view: "Viewing paste · ulakbin",
-      history: "Your pastes · ulakbin",
+      create: "dropln — encrypted ephemeral paste",
+      success: "Encrypted · dropln",
+      view: "Viewing paste · dropln",
+      history: "Your pastes · dropln",
     };
     document.title = titles[route.name];
   }, [route.name]);
@@ -472,7 +472,7 @@ function AppInner() {
     // Mark onboarding complete on first successful create.
     if (showOnboarding) {
       setShowOnboarding(false);
-      try { window.localStorage.setItem("ulakbin.onboarded", "1"); } catch {}
+      try { window.localStorage.setItem("dropln.onboarded", "1"); } catch {}
     }
 
     setRoute({ name: "success" });

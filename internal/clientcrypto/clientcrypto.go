@@ -26,7 +26,7 @@ import (
 
 	"golang.org/x/crypto/pbkdf2"
 
-	"github.com/0xydev/ulakbin/internal/paste"
+	"github.com/0xydev/dropln/internal/paste"
 )
 
 const (

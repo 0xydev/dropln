@@ -29,7 +29,7 @@ import { tags as t } from "@lezer/highlight";
 // ─── theme ───────────────────────────────────────────────────────────────
 // Uses our CSS custom properties so dark/light + accent flips Just Work.
 
-const ulakbinTheme = EditorView.theme(
+const droplnTheme = EditorView.theme(
   {
     "&": {
       backgroundColor: "var(--bg-inset)",
@@ -201,7 +201,7 @@ const baseExtensions: Extension[] = [
   search({ top: true }),
   keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
   EditorView.lineWrapping,
-  ulakbinTheme,
+  droplnTheme,
 ];
 
 export function CodeEditor({

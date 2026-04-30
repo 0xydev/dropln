@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/0xydev/ulakbin/internal/paste"
-	"github.com/0xydev/ulakbin/internal/storage"
+	"github.com/0xydev/dropln/internal/paste"
+	"github.com/0xydev/dropln/internal/storage"
 )
 
 // Version is the running server version. Override at build time with
-// `-ldflags "-X github.com/0xydev/ulakbin/internal/server.Version=..."`.
+// `-ldflags "-X github.com/0xydev/dropln/internal/server.Version=..."`.
 var Version = "1.0.0-dev"
 
 // createMaxAttempts caps how many times we retry on an ID collision.

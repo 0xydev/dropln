@@ -1,5 +1,5 @@
 -- 0001_init.sql
--- Initial schema for ulakbin: pastes table + expiry index.
+-- Initial schema for dropln: pastes table + expiry index.
 
 CREATE TABLE IF NOT EXISTS pastes (
     -- Opaque short ID (PrivateBin convention: 16 hex chars / 8 random bytes).

@@ -136,7 +136,7 @@ function AttachmentBlock({ attachment }: { attachment: DecryptedAttachment }) {
         {info.isText && (
           <div className="attachment-text">
             <CodeEditor
-              className="ulak-cm-host"
+              className="dropln-cm-host"
               value={textContent}
               language={languageForAttachment(attachment.name, info.mime)}
               readOnly
@@ -652,7 +652,7 @@ function ViewSuccess({
             ) : (
               <div className="viewer-body">
                 <CodeEditor
-                  className="ulak-cm-host"
+                  className="dropln-cm-host"
                   value={content}
                   language={viewerLanguage(settings)}
                   readOnly

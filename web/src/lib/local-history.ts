@@ -1,13 +1,13 @@
-// Browser-side counterpart of the CLI's $XDG_CONFIG_HOME/ulakbin/history.json.
+// Browser-side counterpart of the CLI's $XDG_CONFIG_HOME/dropln/history.json.
 // Tracks pastes the user created from THIS browser so we can offer a
 // "Your pastes" page (and command palette recents) without a server-side
 // account.
 //
-// Stored in localStorage under "ulakbin.history". Contains delete tokens,
+// Stored in localStorage under "dropln.history". Contains delete tokens,
 // so it sits alongside other browser secrets (autofill, session cookies).
 // Anyone with access to the browser can see + revoke past pastes.
 
-const STORAGE_KEY = "ulakbin.history";
+const STORAGE_KEY = "dropln.history";
 
 export type LocalHistoryEntry = {
   id: string;

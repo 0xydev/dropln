@@ -10,11 +10,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/0xydev/ulakbin/internal/config"
-	"github.com/0xydev/ulakbin/internal/purge"
-	"github.com/0xydev/ulakbin/internal/ratelimit"
-	"github.com/0xydev/ulakbin/internal/server"
-	"github.com/0xydev/ulakbin/internal/storage/postgres"
+	"github.com/0xydev/dropln/internal/config"
+	"github.com/0xydev/dropln/internal/purge"
+	"github.com/0xydev/dropln/internal/ratelimit"
+	"github.com/0xydev/dropln/internal/server"
+	"github.com/0xydev/dropln/internal/storage/postgres"
 )
 
 func main() {
@@ -54,7 +54,7 @@ func main() {
 	}
 
 	go func() {
-		logger.Info("ulakbin listening", "addr", cfg.Addr)
+		logger.Info("dropln listening", "addr", cfg.Addr)
 		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("server error", "err", err)
 			stop()

@@ -73,16 +73,15 @@ export const useToast = () => {
 
 // ─── Brand ────────────────────────────────────────────────────────────────
 
-export type LogomarkVariant = "wordmark" | "lock" | "envelope" | "bracket";
+export type LogomarkVariant = "wordmark" | "drop" | "envelope" | "bracket";
 
 export function BrandGlyph({ variant }: { variant: LogomarkVariant }) {
-  if (variant === "lock") {
+  if (variant === "drop") {
     return (
       <span className="brand-glyph">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <rect x="2.5" y="7" width="11" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
-          <path d="M5 7V5a3 3 0 1 1 6 0v2" stroke="currentColor" strokeWidth="1.4" />
-          <circle cx="8" cy="10.5" r="1" fill="currentColor" />
+          <path d="M8 2.5c1.4 1.8 2.7 3.2 2.7 4.7a2.7 2.7 0 1 1-5.4 0c0-1.5 1.3-2.9 2.7-4.7z" fill="currentColor" />
+          <line x1="3.5" y1="12.5" x2="12.5" y2="12.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       </span>
     );
@@ -112,7 +111,7 @@ export function BrandGlyph({ variant }: { variant: LogomarkVariant }) {
 }
 
 export function Brand({
-  variant = "lock",
+  variant = "drop",
   onClick,
 }: {
   variant?: LogomarkVariant;
@@ -128,8 +127,8 @@ export function Brand({
       }}
     >
       {variant !== "wordmark" && <BrandGlyph variant={variant} />}
-      <span>
-        ulakb<span className="brand-dot">.</span>in
+      <span className="brand-wordmark">
+        drop<span className="brand-accent">ln</span>
       </span>
     </a>
   );

@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xydev/ulakbin/internal/config"
-	"github.com/0xydev/ulakbin/internal/ratelimit"
-	"github.com/0xydev/ulakbin/internal/server"
-	"github.com/0xydev/ulakbin/internal/storage/postgres"
+	"github.com/0xydev/dropln/internal/config"
+	"github.com/0xydev/dropln/internal/ratelimit"
+	"github.com/0xydev/dropln/internal/server"
+	"github.com/0xydev/dropln/internal/storage/postgres"
 )
 
 const validPayload = `{"v":2,"ct":"ME5JF/YBEijp2uYMzLZozbKtWc5wfy6R59NBb7SmRig=","adata":[["gMSNoLOk4z0RnmsYwXZ8mw==","TZO+JWuIuxs=",100000,256,128,"aes","gcm","zlib"],"plaintext",1,0],"meta":{"expire":"5min"}}`
@@ -45,9 +45,9 @@ func createPaste(t *testing.T, srv http.Handler) (id, deleteToken string) {
 
 func setup(t *testing.T) (http.Handler, *config.Config) {
 	t.Helper()
-	dsn := os.Getenv("ULAKBIN_TEST_DATABASE_URL")
+	dsn := os.Getenv("DROPLN_TEST_DATABASE_URL")
 	if dsn == "" {
-		t.Skip("set ULAKBIN_TEST_DATABASE_URL to run server integration tests")
+		t.Skip("set DROPLN_TEST_DATABASE_URL to run server integration tests")
 	}
 	ctx := context.Background()
 	store, err := postgres.New(ctx, dsn)

@@ -30,8 +30,8 @@ type Config struct {
 
 func Load() (*Config, error) {
 	cfg := &Config{
-		Addr:            getEnv("ULAKBIN_ADDR", ":8080"),
-		DatabaseURL:     os.Getenv("ULAKBIN_DATABASE_URL"),
+		Addr:            getEnv("DROPLN_ADDR", ":8080"),
+		DatabaseURL:     os.Getenv("DROPLN_DATABASE_URL"),
 		MaxPasteBytes:   32 * 1024 * 1024,
 		PurgeInterval:   5 * time.Minute,
 		PurgeBatchSize:  1000,
@@ -40,35 +40,35 @@ func Load() (*Config, error) {
 		RateLimitTTL:    time.Hour,
 	}
 
-	if v := os.Getenv("ULAKBIN_MAX_PASTE_BYTES"); v != "" {
+	if v := os.Getenv("DROPLN_MAX_PASTE_BYTES"); v != "" {
 		n, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("ULAKBIN_MAX_PASTE_BYTES: %w", err)
+			return nil, fmt.Errorf("DROPLN_MAX_PASTE_BYTES: %w", err)
 		}
 		cfg.MaxPasteBytes = n
 	}
 
-	if v := os.Getenv("ULAKBIN_RATE_LIMIT_PER_MIN"); v != "" {
+	if v := os.Getenv("DROPLN_RATE_LIMIT_PER_MIN"); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil {
-			return nil, fmt.Errorf("ULAKBIN_RATE_LIMIT_PER_MIN: %w", err)
+			return nil, fmt.Errorf("DROPLN_RATE_LIMIT_PER_MIN: %w", err)
 		}
 		cfg.RateLimitPerMin = n
 	}
 
-	if v := os.Getenv("ULAKBIN_RATE_LIMIT_BURST"); v != "" {
+	if v := os.Getenv("DROPLN_RATE_LIMIT_BURST"); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil {
-			return nil, fmt.Errorf("ULAKBIN_RATE_LIMIT_BURST: %w", err)
+			return nil, fmt.Errorf("DROPLN_RATE_LIMIT_BURST: %w", err)
 		}
 		cfg.RateLimitBurst = n
 	}
 
-	cfg.TrustProxy = parseBool(os.Getenv("ULAKBIN_TRUST_PROXY"))
-	cfg.HSTS = parseBool(os.Getenv("ULAKBIN_HSTS"))
+	cfg.TrustProxy = parseBool(os.Getenv("DROPLN_TRUST_PROXY"))
+	cfg.HSTS = parseBool(os.Getenv("DROPLN_HSTS"))
 
 	if cfg.DatabaseURL == "" {
-		return nil, fmt.Errorf("ULAKBIN_DATABASE_URL is required")
+		return nil, fmt.Errorf("DROPLN_DATABASE_URL is required")
 	}
 
 	return cfg, nil

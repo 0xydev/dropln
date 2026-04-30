@@ -12,7 +12,7 @@ import (
 )
 
 // historyEntry tracks a paste this user created so the CLI can offer
-// `ulakbin list` and `ulakbin delete <id>` without re-typing the
+// `dropln list` and `dropln delete <id>` without re-typing the
 // delete-token. File is XDG-compliant; perms are 0600 (contains
 // secrets — delete tokens). Never logged or exfiltrated.
 type historyEntry struct {
@@ -32,7 +32,7 @@ type history struct {
 }
 
 func historyPath() (string, error) {
-	if p := os.Getenv("ULAKBIN_HISTORY"); p != "" {
+	if p := os.Getenv("DROPLN_HISTORY"); p != "" {
 		return p, nil
 	}
 	base := os.Getenv("XDG_CONFIG_HOME")
@@ -43,7 +43,7 @@ func historyPath() (string, error) {
 		}
 		base = filepath.Join(home, ".config")
 	}
-	return filepath.Join(base, "ulakbin", "history.json"), nil
+	return filepath.Join(base, "dropln", "history.json"), nil
 }
 
 func loadHistory() (*history, error) {

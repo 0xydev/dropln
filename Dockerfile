@@ -15,11 +15,11 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=web /web/dist ./web/dist
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/ulakbin ./cmd/ulakbin
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/dropln ./cmd/dropln
 
 # Stage 3: minimal runtime.
 FROM scratch
-COPY --from=build /out/ulakbin /ulakbin
+COPY --from=build /out/dropln /dropln
 EXPOSE 8080
 USER 65532:65532
-ENTRYPOINT ["/ulakbin"]
+ENTRYPOINT ["/dropln"]

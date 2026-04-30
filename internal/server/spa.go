@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/0xydev/ulakbin/web"
+	"github.com/0xydev/dropln/web"
 )
 
 // spaHandler serves the embedded frontend bundle.

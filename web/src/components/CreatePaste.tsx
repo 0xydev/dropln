@@ -429,7 +429,7 @@ export function CreatePaste({
           onDrop={handleDrop}
         >
           <CodeEditor
-            className="ulak-cm-host"
+            className="dropln-cm-host"
             value={content}
             onChange={setContent}
             language={editorLanguage(settings)}

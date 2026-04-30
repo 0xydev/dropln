@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xydev/ulakbin/internal/paste"
-	"github.com/0xydev/ulakbin/internal/storage"
-	"github.com/0xydev/ulakbin/internal/storage/postgres"
+	"github.com/0xydev/dropln/internal/paste"
+	"github.com/0xydev/dropln/internal/storage"
+	"github.com/0xydev/dropln/internal/storage/postgres"
 )
 
 // A real Format v2 envelope; exact bytes don't matter at the storage layer
@@ -20,9 +20,9 @@ const samplePayload = `{"v":2,"ct":"ME5JF/YBEijp2uYMzLZozbKtWc5wfy6R59NBb7SmRig=
 
 func newStore(t *testing.T) *postgres.Store {
 	t.Helper()
-	dsn := os.Getenv("ULAKBIN_TEST_DATABASE_URL")
+	dsn := os.Getenv("DROPLN_TEST_DATABASE_URL")
 	if dsn == "" {
-		t.Skip("set ULAKBIN_TEST_DATABASE_URL to run postgres integration tests (e.g. postgres://ulakbin:ulakbin@localhost:5432/ulakbin?sslmode=disable)")
+		t.Skip("set DROPLN_TEST_DATABASE_URL to run postgres integration tests (e.g. postgres://dropln:dropln@localhost:5432/dropln?sslmode=disable)")
 	}
 	ctx := context.Background()
 	s, err := postgres.New(ctx, dsn)

@@ -6,8 +6,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/0xydev/ulakbin/internal/paste"
-	"github.com/0xydev/ulakbin/internal/storage"
+	"github.com/0xydev/dropln/internal/paste"
+	"github.com/0xydev/dropln/internal/storage"
 )
 
 func (s *Server) handleCreateComment(w http.ResponseWriter, r *http.Request) {

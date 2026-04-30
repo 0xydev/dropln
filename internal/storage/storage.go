@@ -1,4 +1,4 @@
-// Package storage defines the persistence boundary for ulakbin.
+// Package storage defines the persistence boundary for dropln.
 // Implementations live in subpackages (e.g. internal/storage/postgres).
 package storage
 

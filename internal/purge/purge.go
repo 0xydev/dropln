@@ -8,7 +8,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/0xydev/ulakbin/internal/storage"
+	"github.com/0xydev/dropln/internal/storage"
 )
 
 type Worker struct {

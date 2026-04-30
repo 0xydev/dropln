@@ -1,5 +1,5 @@
 /* ========================================================================
-   ulakbin — design system
+   dropln — design system
    ======================================================================== */
 
 @font-face {
@@ -295,9 +295,10 @@ html, body, .app, .topnav, .footer,
   text-decoration: none;
   color: var(--fg-0);
   font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  font-feature-settings: "ss01", "ss02";
 }
 
 .brand-glyph {
@@ -307,10 +308,25 @@ html, body, .app, .topnav, .footer,
   align-items: center;
   justify-content: center;
   color: var(--accent);
+  transition: transform 0.2s ease;
 }
 
-.brand-dot {
+.brand:hover .brand-glyph {
+  transform: translateY(-1px);
+}
+
+.brand-wordmark {
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.brand-accent {
   color: var(--accent);
+  position: relative;
+}
+
+.brand:hover .brand-accent {
+  text-shadow: 0 0 8px color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
 .nav-spacer { flex: 1; }
@@ -664,13 +680,13 @@ html, body, .app, .topnav, .footer,
   height: clamp(320px, calc(100vh - 280px), 720px);
   overflow: hidden;
 }
-.cm-shell > .ulak-cm-host {
+.cm-shell > .dropln-cm-host {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
-.cm-shell > .ulak-cm-host > .cm-editor {
+.cm-shell > .dropln-cm-host > .cm-editor {
   flex: 1;
 }
 
@@ -1345,13 +1361,13 @@ html, body, .app, .topnav, .footer,
   height: clamp(280px, calc(100vh - 420px), 560px);
   background: var(--bg-inset);
 }
-.attachment-text > .ulak-cm-host {
+.attachment-text > .dropln-cm-host {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
-.attachment-text > .ulak-cm-host > .cm-editor {
+.attachment-text > .dropln-cm-host > .cm-editor {
   flex: 1;
 }
 
@@ -1679,13 +1695,13 @@ html, body, .app, .topnav, .footer,
   from { opacity: 0; }
   to { opacity: 1; }
 }
-.viewer-body > .ulak-cm-host {
+.viewer-body > .dropln-cm-host {
   flex: 1;
   min-height: 240px;
   display: flex;
   flex-direction: column;
 }
-.viewer-body > .ulak-cm-host > .cm-editor {
+.viewer-body > .dropln-cm-host > .cm-editor {
   flex: 1;
 }
 

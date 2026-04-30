@@ -1,4 +1,4 @@
-module github.com/0xydev/ulakbin
+module github.com/0xydev/dropln
 
 go 1.25.1
 

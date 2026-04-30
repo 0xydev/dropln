@@ -4,10 +4,10 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/0xydev/ulakbin/internal/config"
-	"github.com/0xydev/ulakbin/internal/ratelimit"
-	"github.com/0xydev/ulakbin/internal/server/dev"
-	"github.com/0xydev/ulakbin/internal/storage"
+	"github.com/0xydev/dropln/internal/config"
+	"github.com/0xydev/dropln/internal/ratelimit"
+	"github.com/0xydev/dropln/internal/server/dev"
+	"github.com/0xydev/dropln/internal/storage"
 )
 
 type Server struct {

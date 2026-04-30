@@ -1,9 +1,9 @@
 .PHONY: build build-go build-web build-cli run dev test test-integration tidy fmt vet lint clean db-up db-down
 
-BINARY     := bin/ulakbin
-CLI_BINARY := bin/ulakbin-cli
+BINARY     := bin/dropln
+CLI_BINARY := bin/dropln-cli
 PKG        := ./...
-TEST_DB    := postgres://ulakbin:ulakbin@localhost:5432/ulakbin?sslmode=disable
+TEST_DB    := postgres://dropln:dropln@localhost:5432/dropln?sslmode=disable
 VERSION    := $(shell git describe --tags --always 2>/dev/null || echo dev)
 
 # Build everything: frontend bundle first (so the Go embed has fresh assets),
@@ -15,14 +15,14 @@ build-web:
 
 build-go:
 	@mkdir -p bin
-	go build -trimpath -ldflags="-s -w" -o $(BINARY) ./cmd/ulakbin
+	go build -trimpath -ldflags="-s -w" -o $(BINARY) ./cmd/dropln
 
 build-cli:
 	@mkdir -p bin
-	go build -trimpath -ldflags="-s -w -X main.Version=$(VERSION)" -o $(CLI_BINARY) ./cmd/ulakbin-cli
+	go build -trimpath -ldflags="-s -w -X main.Version=$(VERSION)" -o $(CLI_BINARY) ./cmd/dropln-cli
 
 run: build
-	ULAKBIN_DATABASE_URL='$(TEST_DB)' ./$(BINARY)
+	DROPLN_DATABASE_URL='$(TEST_DB)' ./$(BINARY)
 
 # Frontend dev server (Vite at :5173) with HMR. Requires the Go backend to
 # be running on :8080 — Vite proxies /api/* to it.
@@ -34,7 +34,7 @@ test:
 
 # Requires `make db-up` first.
 test-integration:
-	ULAKBIN_TEST_DATABASE_URL='$(TEST_DB)' go test -race -count=1 $(PKG)
+	DROPLN_TEST_DATABASE_URL='$(TEST_DB)' go test -race -count=1 $(PKG)
 
 tidy:
 	go mod tidy
@@ -52,13 +52,13 @@ clean:
 	rm -rf bin/ web/dist/
 
 db-up:
-	docker run -d --name ulakbin-pg \
-		-e POSTGRES_PASSWORD=ulakbin \
-		-e POSTGRES_USER=ulakbin \
-		-e POSTGRES_DB=ulakbin \
+	docker run -d --name dropln-pg \
+		-e POSTGRES_PASSWORD=dropln \
+		-e POSTGRES_USER=dropln \
+		-e POSTGRES_DB=dropln \
 		-p 5432:5432 \
 		postgres:17-alpine
 
 db-down:
-	-docker stop ulakbin-pg
-	-docker rm ulakbin-pg
+	-docker stop dropln-pg
+	-docker rm dropln-pg

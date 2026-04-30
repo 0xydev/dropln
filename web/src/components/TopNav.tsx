@@ -1,7 +1,7 @@
 import { IconGithub, IconHistory, IconMoon, IconSearch, IconSun } from "./icons";
 import { Brand, MOD, type LogomarkVariant } from "./primitives";
 
-const REPO_URL = "https://github.com/0xydev/ulakbin";
+const REPO_URL = "https://github.com/0xydev/dropln";
 
 type TopNavProps = {
   onOpenPalette: () => void;

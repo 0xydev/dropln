@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/0xydev/ulakbin/internal/storage"
+	"github.com/0xydev/dropln/internal/storage"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"

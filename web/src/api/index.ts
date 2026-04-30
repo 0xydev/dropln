@@ -1,4 +1,4 @@
-// HTTP client for the ulakbin Go backend.
+// HTTP client for the dropln Go backend.
 // In dev, Vite proxies /api/* to :8080. In prod, the Go binary serves both.
 
 import type { CommentEnvelope, PasteEnvelope } from "../crypto/format";
