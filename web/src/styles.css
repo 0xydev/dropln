@@ -42,9 +42,29 @@
 
   /* Accent — set per-tweak via JS */
   --accent: #14b8a6;
-  --accent-soft: #14b8a61a;
-  --accent-line: #14b8a633;
+  --accent-soft: rgba(20, 184, 166, 0.12);
+  --accent-line: rgba(20, 184, 166, 0.32);
   --accent-fg: #061412;
+
+  /* Selection — bumped from accent-soft so it's visible on the editor's
+     bg-inset. Theme-tokenized so light mode can intensify independently. */
+  --selection-bg: rgba(20, 184, 166, 0.22);
+
+  /* Syntax — values consumed by CodeEditor's HighlightStyle. Theme-flipped
+     in .theme-light so highlighting stays legible when switching. */
+  --syntax-keyword:   #c084fc;
+  --syntax-string:    #86efac;
+  --syntax-number:    #fbbf24;
+  --syntax-comment:   var(--fg-3);
+  --syntax-function:  #67e8f9;
+  --syntax-property:  #7dd3fc;
+  --syntax-type:      #fde68a;
+  --syntax-tag:       #fda4af;
+  --syntax-attribute: #7dd3fc;
+  --syntax-regex:     #fcd34d;
+  --syntax-operator:  var(--fg-1);
+  --syntax-punct:     var(--fg-2);
+  --syntax-heading:   #7dd3fc;
 
   /* Geometry */
   --r-sm: 4px;
@@ -78,22 +98,68 @@
   --row-h: 32px;
 }
 
-/* Light theme */
+/* ─────────────────────── Light theme ─────────────────────────────────────
+   Less "white office paper", more "soft daylight workspace". Pure white
+   #fff and pure black #000 are deliberately avoided — both make retina
+   panels harsh. Surfaces carry a subtle cool tint, text is charcoal not
+   black, shadows replace stark borders for depth. Accent darkens to keep
+   AA contrast; syntax palette swaps to a saturated, ink-on-paper feel.
+   ───────────────────────────────────────────────────────────────────────── */
 .theme-light {
-  --bg-0: #fafaf9;
-  --bg-1: #ffffff;
-  --bg-2: #f5f5f4;
-  --bg-3: #ececea;
-  --bg-inset: #f8f8f6;
+  /* Surfaces — cool off-white with a hint of slate */
+  --bg-0: #f4f5f8;        /* page */
+  --bg-1: #fbfcfd;        /* card — softer than pure white */
+  --bg-2: #eaecf0;        /* raised */
+  --bg-3: #dde0e6;        /* hover */
+  --bg-inset: #eef0f3;    /* editor — distinct from bg-0 */
 
-  --line-1: #ececea;
-  --line-2: #dcdcd8;
-  --line-3: #b8b8b2;
+  /* Borders — softer, less rectangle-y */
+  --line-1: #e3e6ec;      /* hairline */
+  --line-2: #c9cfd8;      /* visible */
+  --line-3: #97a0ad;      /* focus */
 
-  --fg-0: #0a0a0a;
-  --fg-1: #44444a;
-  --fg-2: #76767c;
-  --fg-3: #a8a8ae;
+  /* Text — charcoal, not black */
+  --fg-0: #1a1f2a;        /* primary */
+  --fg-1: #4a5260;
+  --fg-2: #6b7480;
+  --fg-3: #9aa3b0;
+
+  /* Status — saturated for sufficient contrast on light bg */
+  --ok:    #15803d;
+  --warn:  #b45309;
+  --burn:  #c1361b;
+  --info:  #1d4ed8;
+
+  /* Accent — slightly darker teal so white text stays AA on accent fills,
+     and so accent-as-text reads cleanly on bg-0. */
+  --accent: #0d8b80;
+  --accent-soft: rgba(13, 139, 128, 0.10);
+  --accent-line: rgba(13, 139, 128, 0.28);
+  --accent-fg: #ffffff;
+
+  /* Selection — needs more punch on light */
+  --selection-bg: rgba(13, 139, 128, 0.18);
+
+  /* Syntax — ink-on-paper colors; AA contrast against bg-inset (#eef0f3) */
+  --syntax-keyword:   #7c3aed;
+  --syntax-string:    #15803d;
+  --syntax-number:    #b45309;
+  --syntax-comment:   var(--fg-2);
+  --syntax-function:  #0369a1;
+  --syntax-property:  #1d4ed8;
+  --syntax-type:      #92400e;
+  --syntax-tag:       #be185d;
+  --syntax-attribute: #1e40af;
+  --syntax-regex:     #9a3412;
+  --syntax-heading:   #1d4ed8;
+
+  /* Shadows — soft, slate-tinted; replace harsh borders for elevation */
+  --shadow-1: 0 1px 0 rgba(255,255,255,0.6) inset,
+              0 1px 2px rgba(28, 40, 72, 0.05);
+  --shadow-2: 0 1px 0 rgba(255,255,255,0.7) inset,
+              0 4px 14px -2px rgba(28, 40, 72, 0.07);
+  --shadow-3: 0 1px 0 rgba(255,255,255,0.85) inset,
+              0 18px 44px -8px rgba(28, 40, 72, 0.12);
 }
 
 /* Density: compact */
@@ -140,21 +206,39 @@ button, input, textarea, select {
 button { cursor: pointer; }
 
 ::selection {
-  background: var(--accent-soft);
+  background: var(--selection-bg);
   color: var(--fg-0);
 }
 
-/* Scrollbar */
+/* Scrollbar — track tinted to match the page so it disappears into bg */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background: var(--line-2);
   border: 2px solid var(--bg-0);
   border-radius: 999px;
+  transition: background 150ms ease-out;
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--line-3); }
 
-/* Reduced motion */
+/* Smooth color flip when toggling theme. Limited to color-ish properties so
+   layout-affecting transitions (transform / position / opacity) elsewhere
+   keep their tighter timings. */
+html, body, .app, .topnav, .footer,
+.editor-shell, .editor-pane, .editor-toolbar, .action-bar,
+.cm-shell, .viewer-card, .viewer-head, .viewer-body,
+.success-card, .gate-card, .pw-card, .err-card,
+.attachment-block, .attachment-head, .attachment-preview,
+.thread, .composer, .comment, .markdown-view,
+.btn, .input, .select-trigger, .badge, .kbd, .kbd-hint,
+.cp-card, .toast {
+  transition: background-color 220ms ease-out,
+              color 220ms ease-out,
+              border-color 220ms ease-out,
+              box-shadow 220ms ease-out;
+}
+
+/* Reduced motion — kill all transitions/animations */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -162,11 +246,15 @@ button { cursor: pointer; }
   }
 }
 
-/* Focus rings */
+/* Focus rings — softer in light, slightly thicker in dark for contrast */
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: var(--r-sm);
+}
+.theme-light :focus-visible {
+  outline-width: 2px;
+  outline-color: color-mix(in oklab, var(--accent) 75%, transparent);
 }
 
 /* ============================ App shell ============================ */

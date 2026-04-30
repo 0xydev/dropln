@@ -33,7 +33,8 @@ import type { Formatter } from "./crypto/format";
 import { ApiError, createPaste, getInfo, readPaste } from "./api";
 
 // ─── Design tokens (locked-in choices) ───────────────────────────────────
-const ACCENT_TEAL = { fg: "#14b8a6", text: "#061412" };
+// Accent / palette live in styles.css now; both themes carry their own
+// values so JS doesn't need to push CSS variables anymore.
 const LOGOMARK: LogomarkVariant = "lock";
 
 type Route = { name: "create" } | { name: "success" } | { name: "view" };
@@ -89,8 +90,19 @@ function pushURL(path: string) {
 
 // ─── App ─────────────────────────────────────────────────────────────────
 
+// Read the user's persisted preference from localStorage. Falls back to the
+// system color-scheme on first visit. SSR-safe-ish: localStorage check is
+// guarded for environments without window.
+function initialTheme(): "dark" | "light" {
+  if (typeof window === "undefined") return "dark";
+  const stored = window.localStorage.getItem("ulakbin.theme");
+  if (stored === "dark" || stored === "light") return stored;
+  if (window.matchMedia?.("(prefers-color-scheme: light)").matches) return "light";
+  return "dark";
+}
+
 function AppInner() {
-  const [theme, setTheme] = React.useState<"dark" | "light">("dark");
+  const [theme, setTheme] = React.useState<"dark" | "light">(initialTheme);
   const [route, setRoute] = React.useState<Route>(() =>
     parseURL().kind === "view" ? { name: "view" } : { name: "create" },
   );
@@ -135,14 +147,18 @@ function AppInner() {
       });
   }, []);
 
-  // Apply theme + locked design tokens to <html>.
+  // Apply theme to <html> and persist the choice. The accent token
+  // overrides from the dark prototype are dropped — styles.css now owns
+  // the full per-theme palette including accent-soft / accent-line, so
+  // light mode can use a darker teal without JS-side string concat.
   React.useEffect(() => {
     const root = document.documentElement;
-    root.style.setProperty("--accent", ACCENT_TEAL.fg);
-    root.style.setProperty("--accent-fg", ACCENT_TEAL.text);
-    root.style.setProperty("--accent-soft", ACCENT_TEAL.fg + "1f");
-    root.style.setProperty("--accent-line", ACCENT_TEAL.fg + "3a");
     root.classList.toggle("theme-light", theme === "light");
+    try {
+      window.localStorage.setItem("ulakbin.theme", theme);
+    } catch {
+      // private browsing / disabled storage — ignore
+    }
   }, [theme]);
 
   // Initial URL handling: if landed on /p/{id}#{key}, kick off the view flow.
