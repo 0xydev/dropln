@@ -179,6 +179,17 @@ function AppInner() {
     }
   }, [theme]);
 
+  // Tab title per route — helps users juggling many tabs.
+  React.useEffect(() => {
+    const titles: Record<Route["name"], string> = {
+      create: "ulakbin — encrypted ephemeral paste",
+      success: "Encrypted · ulakbin",
+      view: "Viewing paste · ulakbin",
+      history: "Your pastes · ulakbin",
+    };
+    document.title = titles[route.name];
+  }, [route.name]);
+
   // Initial URL handling: if landed on /p/{id}#{key}, kick off the view flow.
   React.useEffect(() => {
     const parsed = parseURL();

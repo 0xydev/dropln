@@ -18,11 +18,15 @@ type ToastWithId = Toast & { id: string };
 
 const ToastCtx = React.createContext<((t: Toast) => void) | null>(null);
 
+// Cap simultaneously visible toasts so a burst of errors / "URL copied" /
+// "comment posted" doesn't end up filling the screen.
+const MAX_VISIBLE_TOASTS = 4;
+
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = React.useState<ToastWithId[]>([]);
   const show = React.useCallback((toast: Toast) => {
     const id = Math.random().toString(36).slice(2);
-    setToasts((t) => [...t, { ...toast, id }]);
+    setToasts((t) => [...t, { ...toast, id }].slice(-MAX_VISIBLE_TOASTS));
     setTimeout(
       () => setToasts((t) => t.filter((x) => x.id !== id)),
       toast.duration || 2400,

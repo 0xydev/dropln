@@ -104,7 +104,10 @@ const ulakbinTheme = EditorView.theme(
       padding: "2px 8px",
     },
   },
-  { dark: true },
+  // Intentionally NOT setting `dark: true` here. Our CSS variables drive
+  // both themes, so CM6's built-in dark-vs-light branching (selection
+  // underlay color, scrollbar tint, default placeholder color) shouldn't
+  // be locked to dark — that produced washed scrollbars in light mode.
 );
 
 // Syntax palette is fully token-driven (var(--syntax-*)) so it flips between

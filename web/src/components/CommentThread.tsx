@@ -57,7 +57,7 @@ export function CommentThread({
   const [posting, setPosting] = React.useState(false);
   const toast = useToast();
 
-  const refresh = React.useCallback(async () => {
+  const refresh = React.useCallback(async (): Promise<boolean> => {
     setLoading(true);
     try {
       const records = await listComments(pasteId);
@@ -76,9 +76,11 @@ export function CommentThread({
         }
       }
       setComments(decrypted);
+      return true;
     } catch (err) {
       console.error("listComments failed", err);
       toast({ msg: "Failed to load comments", kind: "warn" });
+      return false;
     } finally {
       setLoading(false);
     }
@@ -116,7 +118,15 @@ export function CommentThread({
       });
       await createComment(pasteId, envelope);
       // Refetch replaces the tmp_ entry with the server-confirmed one.
-      await refresh();
+      // If the refresh itself fails (network blip after POST succeeded) we
+      // promote the optimistic entry to confirmed instead of leaving it
+      // dangling as "pending" forever — server has the comment regardless.
+      const ok = await refresh();
+      if (!ok) {
+        setComments((cs) =>
+          cs.map((c) => (c.id === tempId ? { ...c, pending: false } : c)),
+        );
+      }
       toast({ msg: "Encrypted comment posted", kind: "ok" });
       onComment?.();
     } catch (err) {
