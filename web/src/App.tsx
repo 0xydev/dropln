@@ -634,8 +634,13 @@ function AppInner() {
 
   // ─── render ──────────────────────────────────────────────────────────
 
+  // The mobile layer reserves bottom space for the sticky action bar;
+  // pages without one (history, success, view) opt out so they don't
+  // get a phantom 72px gap at the bottom of their content.
+  const hasActionBar = route.name === "create";
+
   return (
-    <div className="app">
+    <div className={"app" + (hasActionBar ? "" : " no-action-bar")}>
       <TopNav
         onOpenPalette={() => setPaletteOpen(true)}
         onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}

@@ -9,6 +9,10 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    // Listen on all interfaces in dev so a phone on the same wifi can hit
+    // the dev server at http://<your-laptop-ip>:5173 — invaluable for
+    // mobile testing without deploying. Production builds are unaffected.
+    host: true,
     proxy: {
       "/api": "http://localhost:8080",
       "/_dev": "http://localhost:8080",

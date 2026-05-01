@@ -16,6 +16,7 @@ import {
   IconMessage,
   IconMinimize,
   IconPaperclip,
+  IconSettings,
   IconShieldCheck,
   IconUpload,
   IconX,
@@ -26,6 +27,7 @@ import { SAMPLE_CONTENT } from "../lib/samples";
 import { estimateEncryptedSize, formatBytes } from "../lib/format-utils";
 import type { PasteSettings } from "./SuccessCard";
 import { CodeEditor } from "./CodeEditor";
+import { useIsMobile } from "../lib/use-media-query";
 
 function editorLanguage(s: PasteSettings): string | undefined {
   if (s.format === "md") return "markdown";
@@ -143,7 +145,14 @@ export function CreatePaste({
   maxPasteBytes,
   showOnboarding,
 }: CreatePasteProps) {
-  const [drawerOpen, setDrawerOpen] = React.useState(true);
+  const isMobile = useIsMobile();
+  // Drawer initial state: open on desktop (it's the right column and
+  // expected to be visible), closed on mobile (it's a bottom sheet that
+  // should only appear when the user taps the settings button).
+  const [drawerOpen, setDrawerOpen] = React.useState(() => {
+    if (typeof window === "undefined") return true;
+    return !window.matchMedia("(max-width: 768px)").matches;
+  });
   const [showPwField, setShowPwField] = React.useState(false);
   const [showPw, setShowPw] = React.useState(false);
   const [dragOver, setDragOver] = React.useState(false);
@@ -151,6 +160,13 @@ export function CreatePaste({
   const [encryptProgress, setEncryptProgress] = React.useState(0);
   const [fullscreen, setFullscreen] = React.useState(false);
   const toast = useToast();
+
+  // When the user crosses the mobile breakpoint (rotate, browser resize),
+  // re-align the drawer state to the convention for the new viewport so
+  // they don't end up with a stuck-open sheet on a fresh desktop layout.
+  React.useEffect(() => {
+    setDrawerOpen(!isMobile);
+  }, [isMobile]);
 
   // Esc exits fullscreen. We add a local listener (instead of routing through
   // App's keyboard hook) so the handler is scoped to this component's lifetime.
@@ -474,6 +490,21 @@ export function CreatePaste({
 
         {/* Action bar */}
         <div className="action-bar">
+          {/*
+            Mobile-only settings button. On desktop the drawer is always
+            in view (right column of editor-shell), so this is hidden via
+            CSS (.mobile-settings-btn { display: none } until 768px). On
+            phones it toggles the same `drawerOpen` state, which the
+            stylesheet reinterprets as "slide bottom sheet up / down".
+          */}
+          <button
+            className="mobile-settings-btn"
+            onClick={() => setDrawerOpen((v) => !v)}
+            aria-label="Open settings"
+          >
+            <IconSettings size={18} />
+          </button>
+
           <button
             className="btn btn-outline"
             onClick={() => {
@@ -559,9 +590,21 @@ export function CreatePaste({
         </div>
       </div>
 
+      {/* Mobile sheet backdrop — appears under the bottom sheet to dim
+          the editor and capture taps that should close the sheet. CSS
+          hides it on desktop. */}
+      {isMobile && drawerOpen && (
+        <div
+          className="mobile-sheet-backdrop"
+          onClick={() => setDrawerOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Drawer */}
       <Drawer
         settings={settings}
+        setSettings={setSettings}
         textBytes={textBytes}
         attachmentBytes={attachmentBytes}
         estimatedBytes={estimatedBytes}
@@ -572,6 +615,16 @@ export function CreatePaste({
         open={drawerOpen}
         onToggle={() => setDrawerOpen((v) => !v)}
         attachedFile={attachedFile}
+        setAttachedFile={setAttachedFile}
+        onPickFile={() => {
+          const inp = document.createElement("input");
+          inp.type = "file";
+          inp.onchange = (e) => {
+            const f = (e.target as HTMLInputElement).files?.[0];
+            if (f) handleAttach(f);
+          };
+          inp.click();
+        }}
         lineCount={lineCount}
       />
     </div>
@@ -580,6 +633,7 @@ export function CreatePaste({
 
 function Drawer({
   settings,
+  setSettings,
   textBytes,
   attachmentBytes,
   estimatedBytes,
@@ -590,9 +644,12 @@ function Drawer({
   open,
   onToggle,
   attachedFile,
+  setAttachedFile,
+  onPickFile,
   lineCount,
 }: {
   settings: PasteSettings;
+  setSettings: (s: PasteSettings) => void;
   textBytes: number;
   attachmentBytes: number;
   estimatedBytes: number;
@@ -603,8 +660,21 @@ function Drawer({
   open: boolean;
   onToggle: () => void;
   attachedFile: AttachedFile | null;
+  setAttachedFile: (f: AttachedFile | null) => void;
+  onPickFile: () => void;
   lineCount: number;
 }) {
+  const [showPw, setShowPw] = React.useState(false);
+  // "Password is being set" — separate from settings.password so the
+  // input row stays visible while the user is mid-typing (and after they
+  // delete everything but haven't yet toggled off).
+  const [pwInputOpen, setPwInputOpen] = React.useState(
+    () => !!settings.password,
+  );
+  React.useEffect(() => {
+    if (settings.password) setPwInputOpen(true);
+  }, [settings.password]);
+
   if (!open) {
     return (
       <div className="drawer">
@@ -699,40 +769,205 @@ function Drawer({
 
         <div className="drawer-section">
           <h4 className="drawer-section-title">Settings</h4>
-          <div className="drawer-row">
-            <span>Format</span>
-            <strong>{FORMATS.find((f) => f.v === settings.format)?.l}</strong>
+
+          {/* Format — three pill chips */}
+          <div className="drawer-row-edit">
+            <div className="drawer-row-edit-head">
+              <span>Format</span>
+            </div>
+            <div className="chip-group">
+              {FORMATS.map((f) => {
+                const Icon = f.icon;
+                const active = settings.format === f.v;
+                return (
+                  <button
+                    key={f.v}
+                    type="button"
+                    className={"chip" + (active ? " chip-active" : "")}
+                    onClick={() => setSettings({ ...settings, format: f.v })}
+                    aria-pressed={active}
+                  >
+                    <Icon size={13} /> {f.l}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+
+          {/* Language — mono chip cluster, only when format=code */}
           {settings.format === "code" && (
-            <div className="drawer-row">
-              <span>Language</span>
-              <strong className="mono">{settings.language}</strong>
+            <div className="drawer-row-edit">
+              <div className="drawer-row-edit-head">
+                <span>Language</span>
+              </div>
+              <div className="chip-group">
+                {LANGS.map((l) => {
+                  const active = settings.language === l;
+                  return (
+                    <button
+                      key={l}
+                      type="button"
+                      className={
+                        "chip chip-mono" + (active ? " chip-active" : "")
+                      }
+                      onClick={() => setSettings({ ...settings, language: l })}
+                      aria-pressed={active}
+                    >
+                      {l}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
-          <div className="drawer-row">
-            <span>Expires</span>
-            <strong>{expiryLabel}</strong>
+
+          {/* Expiry — chips */}
+          <div className="drawer-row-edit">
+            <div className="drawer-row-edit-head">
+              <span>Expires</span>
+            </div>
+            <div className="chip-group">
+              {EXPIRY_OPTIONS.map((o) => {
+                const active = settings.expiry === o.v;
+                return (
+                  <button
+                    key={o.v}
+                    type="button"
+                    className={"chip" + (active ? " chip-active" : "")}
+                    onClick={() => setSettings({ ...settings, expiry: o.v })}
+                    aria-pressed={active}
+                  >
+                    {o.l}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          <div className="drawer-row">
-            <span>Burn after read</span>
-            <strong
-              style={{ color: settings.burn ? "var(--burn)" : "var(--fg-2)" }}
+
+          {/* Burn — toggle row */}
+          <div className="drawer-row-edit">
+            <div className="drawer-row-edit-head">
+              <span>
+                <IconFlame
+                  size={12}
+                  style={{ verticalAlign: "-2px", marginRight: 6 }}
+                />
+                Burn after read
+              </span>
+              <button
+                type="button"
+                className={
+                  "toggle toggle-burn" + (settings.burn ? " toggle-on" : "")
+                }
+                onClick={() => setSettings({ ...settings, burn: !settings.burn })}
+                aria-pressed={settings.burn}
+                aria-label="Toggle burn-after-read"
+              />
+            </div>
+          </div>
+
+          {/* Discussion — toggle row */}
+          <div className="drawer-row-edit">
+            <div className="drawer-row-edit-head">
+              <span>
+                <IconMessage
+                  size={12}
+                  style={{ verticalAlign: "-2px", marginRight: 6 }}
+                />
+                Discussion
+              </span>
+              <button
+                type="button"
+                className={"toggle" + (settings.discussion ? " toggle-on" : "")}
+                onClick={() =>
+                  setSettings({ ...settings, discussion: !settings.discussion })
+                }
+                aria-pressed={settings.discussion}
+                aria-label="Toggle discussion"
+              />
+            </div>
+          </div>
+
+          {/* Password — toggle, with inline input that appears when on */}
+          <div className="drawer-row-edit">
+            <div className="drawer-row-edit-head">
+              <span>
+                <IconKey
+                  size={12}
+                  style={{ verticalAlign: "-2px", marginRight: 6 }}
+                />
+                Password
+              </span>
+              <button
+                type="button"
+                className={"toggle" + (pwInputOpen ? " toggle-on" : "")}
+                onClick={() => {
+                  if (pwInputOpen) {
+                    // Toggling off clears the actual password too —
+                    // "off" must mean "no password," not "remembered
+                    // but invisible," to avoid surprising the user.
+                    setPwInputOpen(false);
+                    setSettings({ ...settings, password: "" });
+                  } else {
+                    setPwInputOpen(true);
+                  }
+                }}
+                aria-pressed={pwInputOpen}
+                aria-label="Toggle password protection"
+              />
+            </div>
+            {pwInputOpen && (
+              <div className="drawer-pw-input">
+                <IconKey size={12} />
+                <input
+                  type={showPw ? "text" : "password"}
+                  placeholder="Enter password…"
+                  value={settings.password}
+                  autoFocus={!settings.password}
+                  onChange={(e) =>
+                    setSettings({ ...settings, password: e.target.value })
+                  }
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw((v) => !v)}
+                  aria-label={showPw ? "Hide password" : "Show password"}
+                >
+                  {showPw ? <IconEyeOff size={12} /> : <IconEye size={12} />}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Attachment section — primary surface for adding files on phones,
+            still useful on desktop as an alternative to drag-drop */}
+        <div className="drawer-section">
+          <h4 className="drawer-section-title">Attachment</h4>
+          {!attachedFile ? (
+            <button
+              type="button"
+              className="drawer-attach-btn"
+              onClick={onPickFile}
             >
-              {settings.burn ? "On" : "Off"}
-            </strong>
-          </div>
-          <div className="drawer-row">
-            <span>Password</span>
-            <strong
-              style={{ color: settings.password ? "var(--accent)" : "var(--fg-2)" }}
-            >
-              {settings.password ? "Set" : "—"}
-            </strong>
-          </div>
-          <div className="drawer-row">
-            <span>Discussion</span>
-            <strong>{settings.discussion ? "Enabled" : "Disabled"}</strong>
-          </div>
+              <IconPaperclip size={14} /> Attach a file
+            </button>
+          ) : (
+            <div className="drawer-attach-current">
+              <IconFile size={14} />
+              <strong>{attachedFile.name}</strong>
+              <span className="muted mono" style={{ fontSize: 11 }}>
+                {formatBytes(attachedFile.size)}
+              </span>
+              <button
+                type="button"
+                onClick={() => setAttachedFile(null)}
+                aria-label="Remove file"
+              >
+                <IconX size={11} />
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="drawer-section">

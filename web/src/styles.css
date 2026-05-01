@@ -1446,40 +1446,10 @@ html, body, .app, .topnav, .footer,
   .shortcuts-body { grid-template-columns: 1fr; }
 }
 
-/* ============================ Mobile / narrow viewport ================ */
-@media (max-width: 800px) {
-  /* Drop the right-side drawer entirely on phones — it'd eat half the screen */
-  .editor-shell { grid-template-columns: 1fr; }
-  .editor-shell .drawer { display: none; }
-
-  /* Toolbar wraps gracefully */
-  .editor-toolbar { flex-wrap: wrap; gap: 6px; padding: 8px 10px; }
-
-  /* Less padding on narrow screens */
-  .view-content-wrap { padding: 16px 12px 60px; }
-  .success-card { padding: 22px 18px; max-width: 100%; }
-  .pw-card, .gate-card, .err-card { max-width: 100%; }
-
-  /* History table collapses to single-column rows */
-  .history-row,
-  .history-row-head { grid-template-columns: 1fr; gap: 4px; padding: 12px 16px; }
-  .history-row-head { display: none; }
-  .history-row {
-    border-bottom: 1px solid var(--line-1);
-    padding: 14px 16px;
-  }
-  .history-actions { justify-content: flex-start; gap: 6px; margin-top: 4px; }
-  .history-head { padding: 16px 16px 14px; flex-direction: column; align-items: flex-start; gap: 12px; }
-
-  /* Nav: hide GitHub/History labels (icons remain) */
-  .topnav { padding: 0 12px; gap: 8px; }
-  .nav-link span:not(.kbd) { display: none; }
-  .kbd-hint { padding: 5px 8px; }
-  .kbd-hint span:nth-child(2) { display: none; } /* "Search or jump…" hint label */
-
-  /* View bar wraps / shrinks */
-  .view-bar { flex-wrap: wrap; gap: 6px; padding: 10px 12px; }
-}
+/* ─────────────────────────── REMOVED (was the old 800px patchwork) ─────
+   Replaced by the comprehensive mobile layer at the bottom of this file.
+   Search for "Pocket-native mobile layer" to find it.
+   ─────────────────────────────────────────────────────────────────────── */
 
 /* ============================ Local history page ====================== */
 .history-stage {
@@ -2141,3 +2111,632 @@ html, body, .app, .topnav, .footer,
 .muted { color: var(--fg-2); }
 .mono { font-family: var(--font-mono); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+/* ============================ Settings primitives ============================
+   Reusable interactive controls that the drawer uses on both desktop and
+   mobile. Pill chips for radio-style selects (one active), iOS toggle for
+   booleans. Sized for thumb without looking bloated on desktop. */
+.chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--fg-1);
+  transition: background 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.chip:hover {
+  background: var(--bg-3);
+  color: var(--fg-0);
+}
+.chip-active,
+.chip-active:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
+.chip-mono { font-family: var(--font-mono); font-size: 12px; }
+
+/* iOS-style on/off toggle — bg color signals state, pseudo-handle slides */
+.toggle {
+  width: 44px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  position: relative;
+  cursor: pointer;
+  transition: background 200ms ease-out, border-color 200ms ease-out;
+  padding: 0;
+}
+.toggle::before {
+  content: "";
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--fg-1);
+  top: 2px;
+  left: 2px;
+  transition: transform 200ms cubic-bezier(0.32, 0.72, 0, 1), background 200ms;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+.toggle-on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.toggle-on::before {
+  transform: translateX(18px);
+  background: var(--accent-fg);
+}
+.toggle-burn.toggle-on {
+  background: var(--burn);
+  border-color: var(--burn);
+}
+
+/* Editable drawer row — label on top, control below; head row has the
+   label + currently-selected summary on the right */
+.drawer-row-edit {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 12px 0;
+  gap: 4px;
+  border-bottom: 1px solid var(--line-1);
+}
+.drawer-row-edit:last-child { border-bottom: none; }
+.drawer-row-edit-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: var(--tx-sm);
+  color: var(--fg-1);
+}
+.drawer-row-edit-head strong {
+  color: var(--fg-0);
+  font-weight: 500;
+}
+
+.drawer-pw-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: var(--bg-inset);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+}
+.drawer-pw-input input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--fg-0);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.drawer-pw-input button {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-2);
+  border-radius: var(--r-sm);
+}
+.drawer-pw-input button:hover { background: var(--bg-3); color: var(--fg-0); }
+
+.drawer-attach-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  background: var(--bg-2);
+  border: 1px dashed var(--line-2);
+  border-radius: var(--r-md);
+  color: var(--fg-1);
+  font-size: 13px;
+  margin-top: 8px;
+  transition: all 150ms ease-out;
+}
+.drawer-attach-btn:hover {
+  background: var(--bg-3);
+  border-color: var(--accent-line);
+  color: var(--fg-0);
+}
+.drawer-attach-current {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--bg-inset);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+}
+.drawer-attach-current strong {
+  flex: 1;
+  font-size: 12px;
+  color: var(--fg-0);
+  font-family: var(--font-mono);
+  word-break: break-all;
+  font-weight: 500;
+}
+.drawer-attach-current button {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-sm);
+  color: var(--fg-2);
+  flex-shrink: 0;
+}
+.drawer-attach-current button:hover { background: var(--bg-3); color: var(--fg-0); }
+
+
+/* =====================================================================
+   Pocket-native mobile layer
+   =====================================================================
+   The site is desktop-first; everything above assumes a wide viewport
+   and a mouse. This layer is the touch experience — sticky bottom CTA,
+   settings as a slide-up bottom sheet, safe-area-aware everything,
+   100dvh containers so the iOS toolbar appearing doesn't reflow the
+   page, and zero hover-only affordances.
+
+   ── Source order matters ──
+   Desktop defaults for mobile-only DOM elements MUST come BEFORE the
+   `@media (max-width: 768px)` block, so the cascade resolves correctly:
+   the media query then re-enables them at the right viewport.
+   ===================================================================== */
+
+/* ─── Universal touch defaults (fine on desktop too) ────────────────── */
+button, a, [role="button"], .nav-link, .btn, .chip, .kbd-hint {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* ─── Mobile-only DOM elements: default = hidden ─────────────────────── */
+.mobile-settings-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+  color: var(--fg-0);
+  flex-shrink: 0;
+}
+.mobile-settings-btn:hover { background: var(--bg-3); }
+
+.mobile-sheet-backdrop {
+  display: none;
+}
+
+/* ─── Touch-device behaviors (any viewport with no hover) ───────────── */
+@media (hover: none) and (pointer: coarse) {
+  /* Inputs at <16px font-size cause iOS to auto-zoom on focus. */
+  input, textarea, select { font-size: 16px; }
+
+  /* Tactile :active feedback — restrained scale, fast easing */
+  button:active, a:active, [role="button"]:active,
+  .nav-link:active, .btn:active, .chip:active,
+  .history-row:active, .ms-card:active {
+    transform: scale(0.97);
+    transition: transform 80ms ease-out;
+  }
+}
+
+/* ===========================================================================
+   The actual phone breakpoint
+   =========================================================================== */
+@media (max-width: 768px) {
+
+  /* ─── Show mobile-only DOM that was hidden by default ──────────────── */
+  .mobile-settings-btn { display: inline-flex; }
+  .mobile-sheet-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 65;
+    animation: backdropIn 200ms ease-out;
+    cursor: pointer;
+  }
+  @keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+
+  /* ─── App shell: dvh + bottom-bar reservation ──────────────────────── */
+  .app {
+    min-height: 100dvh;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+  .app.no-action-bar {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* ─── Top nav: lean, 44×44 tap targets, safe-area aware ────────────── */
+  .topnav {
+    height: calc(56px + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) 14px 0;
+    gap: 6px;
+  }
+  .topnav .kbd-hint { display: none; }              /* no Cmd+K on phones */
+  .topnav .nav-link[href*="github"] { display: none; } /* footer covers it */
+  .topnav .badge-mono { display: none; }            /* server version */
+
+  .nav-link span:not(.kbd) { display: none; }       /* icon-only nav links */
+  .nav-link {
+    width: 44px; height: 44px;
+    padding: 0; justify-content: center;
+  }
+  .nav-links { gap: 2px; }
+  .nav-links .btn-icon { width: 44px; height: 44px; }
+
+  .brand { font-size: 15px; gap: 10px; }
+  .brand-glyph { width: 20px; height: 20px; }
+
+  /* ─── Footer: stacked, smaller ─────────────────────────────────────── */
+  .footer {
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+    text-align: center;
+    align-items: center;
+  }
+  .footer-msg { font-size: 11px; }
+  .footer .muted { font-size: 10px; }
+
+  /* ─── Editor: nuke the desktop toolbar entirely ─────────────────────
+     The toolbar's job (format / lang / expire / burn / password / etc.)
+     moves to the bottom sheet on mobile — see drawer rules below. The
+     editor pane on phone is just CodeMirror, full-bleed, with the
+     sticky action bar below. */
+  .editor-shell,
+  .editor-shell.drawer-collapsed {
+    grid-template-columns: 1fr !important;
+  }
+  .editor-pane { border-right: none; }
+
+  .editor-toolbar { display: none; }
+  .dropzone { display: none; }                /* no drag-drop on touch */
+  .onboarding-ghost { display: none; }        /* desktop kbd-shortcut hint */
+
+  /* CodeMirror takes the full vertical space:
+     viewport - top nav (56+safe-top) - action bar (72+safe-bottom) */
+  .cm-shell {
+    height: calc(100dvh
+                 - 56px - env(safe-area-inset-top)
+                 - 72px - env(safe-area-inset-bottom));
+    min-height: 280px;
+    border-radius: 0;
+  }
+
+  .editor-shell.is-fullscreen { inset: 0; }
+  .editor-shell.is-fullscreen .cm-shell { height: auto; max-height: none; }
+
+  /* ─── Drawer → bottom sheet ──────────────────────────────────────────
+     Same DOM as desktop's right-column drawer; CSS reframes it as a
+     slide-up sheet with rounded top corners and a drag handle. State
+     (drawerOpen) is shared — the sheet's open/close mirrors the desktop
+     drawer's expanded/collapsed. */
+  .editor-shell .drawer {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    max-height: 80dvh;
+    background: var(--bg-1);
+    border-top: 1px solid var(--line-2);
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -10px 50px -10px rgba(0, 0, 0, 0.65);
+    z-index: 70;
+    transform: translateY(100%);
+    transition: transform 280ms cubic-bezier(0.32, 0.72, 0, 1);
+    overscroll-behavior: contain;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .editor-shell.drawer-collapsed .drawer { transform: translateY(100%); }
+  .editor-shell:not(.drawer-collapsed) .drawer { transform: translateY(0); }
+
+  /* When closed, the desktop "rail" version of drawer is rendered (44px
+     icon strip). Hide it — there's nothing to render when the sheet is
+     down. */
+  .drawer-rail { display: none; }
+
+  /* Reposition the chevron-collapse button as an X-style close at the
+     sheet's top right. */
+  .drawer-collapse-btn {
+    top: 14px; right: 14px;
+    width: 32px; height: 32px;
+    border-radius: 999px;
+    background: var(--bg-2);
+    color: var(--fg-1);
+  }
+  .drawer-collapse-btn:hover { background: var(--bg-3); }
+
+  /* iOS-style drag handle (visual only — JS swipe gesture would be nice
+     but is significant work; tap-on-backdrop is the primary close path). */
+  .editor-shell:not(.drawer-collapsed) .drawer::before {
+    content: "";
+    position: absolute;
+    top: 8px; left: 50%;
+    width: 36px; height: 4px;
+    background: var(--line-3);
+    border-radius: 2px;
+    transform: translateX(-50%);
+  }
+
+  .drawer-content {
+    padding: 32px 20px 28px;     /* top extra so handle clears section */
+    overflow-y: auto;
+    max-height: calc(80dvh - env(safe-area-inset-bottom));
+  }
+  .drawer-section { padding: 14px 0; }
+  .drawer-section:first-child { padding-top: 4px; }
+  .drawer-section-title { font-size: 11px; }
+  .drawer-row { padding: 10px 0; font-size: 14px; gap: 14px; }
+  .drawer-row strong { font-size: 13px; }
+
+  /* ─── Action bar: cog + primary, nothing else ───────────────────────
+     Hide every action-bar child except the mobile cog (rendered first
+     in JSX) and the primary CTA. Attach file, file chip, size meter
+     text, kbd hints — all gone. The cog opens the bottom sheet which
+     contains everything else. */
+  .action-bar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 50;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    background: color-mix(in oklab, var(--bg-0) 78%, transparent);
+    backdrop-filter: saturate(160%) blur(14px);
+    -webkit-backdrop-filter: saturate(160%) blur(14px);
+    border-top: 1px solid var(--line-2);
+    gap: 10px;
+  }
+  .action-bar > *:not(.mobile-settings-btn):not(.btn-primary) {
+    display: none !important;
+  }
+  .action-bar .btn-primary {
+    flex: 1;
+    justify-content: center;
+    height: 48px;
+    font-size: 15px;
+    gap: 8px;
+  }
+  .action-bar .btn-primary .kbd { display: none; }
+
+  /* ─── Toasts above the action bar ──────────────────────────────────── */
+  .toast-stack {
+    bottom: calc(80px + env(safe-area-inset-bottom));
+    right: 12px; left: 12px;
+    align-items: stretch;
+  }
+  .toast { min-width: 0; max-width: none; }
+
+  /* ─── View page: read-friendly, full-bleed ─────────────────────────── */
+  .view-stage { padding: 16px 0 0; }
+  .view-content-wrap { padding: 12px 14px 80px; }
+  .viewer-card { border-radius: var(--r-md); margin: 0; }
+
+  .view-bar {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 12px;
+    font-size: var(--tx-sm);
+  }
+  .view-bar .btn span:not(.kbd):not(.dot) { display: none; }
+
+  .viewer-head { padding: 14px 16px; }
+  .viewer-body { padding: 16px; }
+  .viewer-body pre, .viewer-body code { font-size: 13px; }
+
+  .markdown-view {
+    padding: 18px 16px;
+    font-size: 15px;
+    line-height: 1.65;
+  }
+  .markdown-view h1 { font-size: 22px; }
+  .markdown-view h2 { font-size: 19px; }
+  .markdown-view h3 { font-size: 16px; }
+
+  .attachment-block { border-radius: var(--r-md); }
+  .attachment-head { padding: 12px 14px; flex-wrap: wrap; gap: 8px; }
+  .attachment-preview { padding: 14px; }
+
+  /* ─── Comments thread + composer ───────────────────────────────────── */
+  .thread { padding: 16px 14px 24px; gap: 14px; }
+  .thread-head { gap: 8px; padding-bottom: 10px; }
+  .thread-head h3 { font-size: 16px; }
+
+  .comment { gap: 10px; padding: 12px 0; }
+  .comment-body { font-size: 14px; line-height: 1.55; }
+  .comment-actions { gap: 4px; }
+  .comment-actions .btn { padding: 6px 10px; font-size: 12px; }
+
+  .composer { border-radius: var(--r-md); }
+  .composer-head { padding: 10px 12px; flex-wrap: wrap; gap: 6px; }
+  .composer-textarea {
+    min-height: 88px;
+    padding: 12px;
+    font-size: 16px;
+  }
+  .composer-foot {
+    padding: 10px 12px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .composer-foot .btn {
+    height: 44px;
+    justify-content: center;
+  }
+
+  /* ─── Success page: centered, big QR, primary URL ──────────────────── */
+  .success-stage { padding: 24px 16px 16px; }
+  .success-card {
+    padding: 22px 18px;
+    max-width: 100%;
+    border-radius: var(--r-lg);
+  }
+  .success-head {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 10px;
+  }
+  .success-head h2 { font-size: 22px; margin: 0; }
+
+  .success-qr {
+    margin: 18px auto;
+    padding: 14px;
+    background: #fff;
+    border-radius: var(--r-md);
+  }
+  .success-qr canvas {
+    width: 200px !important;
+    height: 200px !important;
+    display: block;
+  }
+
+  .success-url-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .success-url-row .input { font-size: 14px; }
+  .success-url-row .btn {
+    width: 100%;
+    justify-content: center;
+    height: 44px;
+  }
+
+  .success-meta { grid-template-columns: 1fr; gap: 10px; }
+
+  /* ─── Gates (password / burn warning / not-found / loading) ────────── */
+  .pw-stage, .gate-stage, .err-stage, .loading-stage {
+    padding: 32px 16px 16px;
+  }
+  .pw-card, .gate-card, .err-card {
+    max-width: 100%;
+    padding: 24px 20px;
+    border-radius: var(--r-lg);
+  }
+  .pw-card h2, .gate-card h2, .err-card h2 { font-size: 22px; }
+  .pw-card .btn, .gate-card .btn {
+    width: 100%; justify-content: center; height: 46px;
+  }
+
+  /* ─── History: card-list pattern ───────────────────────────────────── */
+  .history-stage { padding: 16px 12px 16px; }
+  .history-card {
+    border-radius: var(--r-md);
+    box-shadow: none;
+    border: 1px solid var(--line-1);
+  }
+  .history-head {
+    padding: 16px 16px 14px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .history-head h2 { font-size: 22px; }
+  .history-head-actions { width: 100%; }
+  .history-head-actions .btn {
+    flex: 1; justify-content: center; height: 42px;
+  }
+
+  .history-row-head { display: none; }
+  .history-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "id      delete"
+      "note    note"
+      "time    time";
+    gap: 6px 8px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line-1);
+    cursor: pointer;
+  }
+  .history-row > .history-id { grid-area: id; font-size: 13px; }
+  .history-row > .history-note {
+    grid-area: note; color: var(--fg-2); font-size: 13px;
+  }
+  .history-row > .history-actions {
+    grid-area: delete; justify-content: flex-end;
+  }
+  .history-row > .history-time {
+    grid-area: time; font-size: 12px; color: var(--fg-2);
+  }
+  .history-row > .history-expires { display: none; }
+  .history-row:active { background: var(--bg-2); }
+
+  /* ─── Modals: full-screen sheet ────────────────────────────────────── */
+  .cp-overlay { padding: 0; align-items: stretch; }
+  .cp-card {
+    width: 100%;
+    max-width: 100% !important;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .cp-search { padding: 14px 16px; gap: 10px; }
+  .cp-search input { font-size: 16px; }
+  .cp-results { max-height: none; flex: 1; }
+  .cp-item { padding: 14px 16px; }
+
+  .shortcuts-card {
+    width: 100%;
+    max-width: 100% !important;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+  .shortcuts-body { padding: 16px; gap: 16px; }
+
+  /* ─── Onboarding overlay ───────────────────────────────────────────── */
+  .onboarding-overlay {
+    padding: 16px;
+    align-items: flex-end;
+  }
+  .onboarding-card {
+    max-width: 100%;
+    border-radius: var(--r-lg);
+    margin-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* ─── Very narrow phones (iPhone SE, etc.) ──────────────────────────── */
+@media (max-width: 380px) {
+  .topnav { padding: env(safe-area-inset-top) 10px 0; gap: 4px; }
+  .brand span:last-child { font-size: 13px; }
+  .action-bar { padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); }
+  .view-content-wrap { padding: 10px 10px 80px; }
+  .markdown-view { padding: 14px 12px; }
+  .composer-textarea { padding: 10px; }
+}
+
+/* ─── Reduce-motion respect ─────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .editor-shell .drawer { transition: none; }
+  .mobile-sheet-backdrop { animation: none; }
+  button:active, a:active { transform: none; }
+}
