@@ -29,17 +29,30 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"time"
 
 	"github.com/0xydev/dropln/internal/clientcrypto"
 	"github.com/0xydev/dropln/internal/paste"
+	"github.com/charmbracelet/glamour"
 )
 
-// Version is overridable at build time:
-//
-//	go build -ldflags "-X main.Version=$(git describe --tags --always)"
-var Version = "dev"
+// Version resolution: the goreleaser build sets this via -ldflags. When
+// people install via `go install` (no ldflags), fall back to the module
+// version embedded in the binary by the Go toolchain so they still see
+// "v0.2.0" instead of "dev".
+var Version = ""
+
+func resolveVersion() string {
+	if Version != "" {
+		return Version
+	}
+	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+	return "dev"
+}
 
 const helpText = `dropln — encrypted ephemeral paste
 
@@ -49,6 +62,7 @@ USAGE
   dropln --file PATH                  attach a file → URL
   dropln delete <id> [token]          delete a paste (uses cached token if omitted)
   dropln list                         list pastes you've created locally
+  dropln examples                     curated cheatsheet of common flows
 
 CREATE FLAGS
   --server URL          server endpoint (env DROPLN_SERVER, default https://dropln.com)
@@ -60,7 +74,8 @@ CREATE FLAGS
   --no-discussion       disable comments on this paste
   --copy                also copy resulting URL to clipboard
   --note TEXT           remember a note for this paste in local history
-  --quiet, -q           print only the URL
+  --qr                  print a Unicode-block QR alongside the URL
+  --quiet, -q           print only the URL (suppresses banner, QR, glamour)
 
 FETCH FLAGS
   --extract DIR         save attachment to DIR (default: cwd)
@@ -85,8 +100,8 @@ ENV
 func main() {
 	cfg, action, err := parseArgs(os.Args[1:])
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		fmt.Fprintln(os.Stderr, "run `dropln --help` for usage.")
+		printErrLn(err.Error())
+		fmt.Fprintln(os.Stderr, styleDim.Render("run `dropln --help` for usage."))
 		os.Exit(2)
 	}
 
@@ -94,7 +109,7 @@ func main() {
 	case actionHelp:
 		fmt.Print(helpText)
 	case actionVersion:
-		fmt.Println("dropln", Version)
+		fmt.Println("dropln", resolveVersion())
 	case actionFetch:
 		if err := fetchAndPrint(cfg); err != nil {
 			fail(err)
@@ -111,11 +126,15 @@ func main() {
 		if err := runList(); err != nil {
 			fail(err)
 		}
+	case actionExamples:
+		if err := runExamples(); err != nil {
+			fail(err)
+		}
 	}
 }
 
 func fail(err error) {
-	fmt.Fprintln(os.Stderr, "error:", err)
+	printErrLn(err.Error())
 	os.Exit(1)
 }
 
@@ -132,6 +151,7 @@ type runConfig struct {
 	noDiscussion bool
 	copy         bool
 	quiet        bool
+	qr           bool
 	note         string
 
 	// fetch-side
@@ -153,6 +173,7 @@ const (
 	actionFetch
 	actionDelete
 	actionList
+	actionExamples
 	actionHelp
 	actionVersion
 )
@@ -178,6 +199,7 @@ func parseArgs(args []string) (*runConfig, action, error) {
 	fs.StringVar(&formatStr, "format", "plaintext", "")
 	fs.BoolVar(&cfg.noDiscussion, "no-discussion", false, "")
 	fs.BoolVar(&cfg.copy, "copy", false, "")
+	fs.BoolVar(&cfg.qr, "qr", false, "")
 	fs.BoolVar(&quietL, "quiet", false, "")
 	fs.BoolVar(&quietS, "q", false, "")
 	fs.StringVar(&cfg.note, "note", "", "")
@@ -220,6 +242,11 @@ func parseArgs(args []string) (*runConfig, action, error) {
 				return nil, 0, fmt.Errorf("`list` takes no arguments")
 			}
 			return cfg, actionList, nil
+		case "examples", "cheat":
+			if len(rest) > 1 {
+				return nil, 0, fmt.Errorf("`%s` takes no arguments", rest[0])
+			}
+			return cfg, actionExamples, nil
 		case "delete", "rm":
 			if len(rest) < 2 {
 				return nil, 0, fmt.Errorf("`%s` needs a paste id (e.g. `dropln %s abc123def456789a`)", rest[0], rest[0])
@@ -451,29 +478,50 @@ func createFlow(cfg *runConfig) error {
 		Burn:        cfg.burn,
 		Note:        cfg.note,
 	}); err != nil {
-		fmt.Fprintln(os.Stderr, "warn: could not write history:", err)
+		printWarn("could not write history: " + err.Error())
 	}
 
 	if cfg.copy {
 		if err := clipboardCopy(pasteURL); err != nil {
-			fmt.Fprintln(os.Stderr, "warn: clipboard copy failed:", err)
+			printWarn("clipboard copy failed: " + err.Error())
 		}
 	}
 
 	if cfg.quiet {
+		// --quiet is for scripts: URL on stdout, nothing else.
 		fmt.Println(pasteURL)
 		return nil
 	}
-	fmt.Fprintln(os.Stderr, "✓ encrypted and uploaded")
-	fmt.Println(pasteURL)
-	fmt.Fprintln(os.Stderr, "  delete token:", created.DeleteToken)
-	if cfg.burn {
-		fmt.Fprintln(os.Stderr, "  ⚠ this URL will self-destruct on first read")
+
+	printSuccess(pasteURL, created.DeleteToken, humanizeExpiry(cfg.expire), cfg.burn, cfg.password != "")
+	// Only echo the bare URL on stdout when it's been redirected — for
+	// `URL=$(dropln)` and `dropln | pbcopy`. When stdout is the user's
+	// terminal, the URL is already in the styled box above; printing it
+	// again would just be noise.
+	if !isTerminal(os.Stdout) {
+		fmt.Println(pasteURL)
 	}
-	if cfg.password != "" {
-		fmt.Fprintln(os.Stderr, "  ⚠ recipient also needs the password (separately)")
+
+	if cfg.qr {
+		printQR(pasteURL)
 	}
 	return nil
+}
+
+// humanizeExpiry maps the user-facing expire flag values to short labels
+// used in the success banner. Empty string means "no expiry shown" (the
+// "never" case, where ExpiresAt is nil).
+func humanizeExpiry(v string) string {
+	return map[string]string{
+		"5min":   "5 minutes",
+		"10min":  "10 minutes",
+		"1hour":  "1 hour",
+		"1day":   "24 hours",
+		"1week":  "7 days",
+		"1month": "30 days",
+		"1year":  "1 year",
+		"never":  "",
+	}[v]
 }
 
 // expiryDuration mirrors the server's paste.ResolveExpire mapping
@@ -515,41 +563,69 @@ func fetchAndPrint(cfg *runConfig) error {
 			if err := writeOutFile(cfg.output, []byte(pl.Paste), cfg.force); err != nil {
 				return err
 			}
-			fmt.Fprintln(os.Stderr, "saved paste text:", cfg.output)
+			printOK("saved paste text → " + cfg.output)
 		} else if pl.Paste != "" {
+			// Pretty-render markdown when both are true:
+			//   - the paste was created with --format markdown
+			//   - stdout is a TTY (so we're not piping into a script that
+			//     expects raw markdown)
+			// Plain text always goes through fmt.Print so output stays
+			// pipe-clean for `dropln <ref> | jq` etc.
+			if envelope.ADATA.Formatter == paste.FormatterMarkdown && !cfg.quiet && isTerminal(os.Stdout) {
+				rendered, rerr := renderMarkdown(pl.Paste)
+				if rerr == nil {
+					fmt.Print(rendered)
+					return printAttachment(cfg, pl)
+				}
+				// Fall through to raw on render error — better to show
+				// raw markdown than fail entirely.
+			}
 			fmt.Print(pl.Paste)
 			if !strings.HasSuffix(pl.Paste, "\n") {
 				fmt.Println()
 			}
 		}
 	}
+	return printAttachment(cfg, pl)
+}
 
-	// 2. Attachment: save unless --no-attachment.
-	if !cfg.noAttachment && pl.Attachment != "" {
-		i := strings.Index(pl.Attachment, "base64,")
-		if i < 0 {
-			fmt.Fprintln(os.Stderr, "warn: attachment uses unsupported encoding")
-			return nil
-		}
-		data, err := base64.StdEncoding.DecodeString(pl.Attachment[i+7:])
-		if err != nil {
-			return fmt.Errorf("decode attachment: %w", err)
-		}
-		name := safeAttachmentName(pl.AttachmentName)
-		if name == "" {
-			name = "attachment.bin"
-		}
-		dir := cfg.extract
-		if dir == "" {
-			dir = "."
-		}
-		outPath := filepath.Join(dir, name)
-		if err := writeOutFile(outPath, data, cfg.force); err != nil {
-			return err
-		}
-		fmt.Fprintln(os.Stderr, "saved attachment:", outPath)
+func renderMarkdown(src string) (string, error) {
+	r, err := glamour.NewTermRenderer(
+		glamour.WithAutoStyle(),
+		glamour.WithWordWrap(100),
+	)
+	if err != nil {
+		return "", err
 	}
+	return r.Render(src)
+}
 
+func printAttachment(cfg *runConfig, pl *clientcrypto.PlainPaste) error {
+	if cfg.noAttachment || pl.Attachment == "" {
+		return nil
+	}
+	i := strings.Index(pl.Attachment, "base64,")
+	if i < 0 {
+		printWarn("attachment uses unsupported encoding")
+		return nil
+	}
+	data, err := base64.StdEncoding.DecodeString(pl.Attachment[i+7:])
+	if err != nil {
+		return fmt.Errorf("decode attachment: %w", err)
+	}
+	name := safeAttachmentName(pl.AttachmentName)
+	if name == "" {
+		name = "attachment.bin"
+	}
+	dir := cfg.extract
+	if dir == "" {
+		dir = "."
+	}
+	outPath := filepath.Join(dir, name)
+	if err := writeOutFile(outPath, data, cfg.force); err != nil {
+		return err
+	}
+	printOK("saved attachment → " + outPath)
 	return nil
 }
 
@@ -626,7 +702,7 @@ func runDelete(cfg *runConfig) error {
 		if h != nil && h.remove(cfg.deleteID) {
 			_ = saveHistory(h)
 		}
-		fmt.Fprintln(os.Stderr, "✓ deleted")
+		printOK("deleted")
 		return nil
 	case http.StatusNotFound:
 		return errors.New("not found — already deleted, expired, burned, or wrong token")

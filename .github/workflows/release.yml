@@ -19,6 +19,14 @@ on:
 permissions:
   contents: write
 
+# Opt actions into Node 24 ahead of the June 2026 forced cutover. The
+# actions we use (checkout@v4, setup-go@v5, goreleaser-action@v6) still
+# bundle Node 20, so this flag tells the runner to execute them under
+# Node 24 anyway — heads off the deprecation warning without bumping
+# action majors.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   goreleaser:
     runs-on: ubuntu-latest

@@ -200,6 +200,11 @@ To self-host:
 export DROPLN_SERVER=https://paste.example.com
 ```
 
+### Cheatsheet
+
+Run `dropln examples` for a colorized, categorized rundown of common
+flows in your terminal — or browse [docs/CHEATSHEET.md](./docs/CHEATSHEET.md).
+
 ### Common flows
 
 ```sh
