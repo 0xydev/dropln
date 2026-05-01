@@ -5,10 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="dark light" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <title>dropln — encrypted ephemeral paste</title>
     <meta name="description" content="Zero-knowledge encrypted paste tool for developers. AES-256-GCM in your browser." />
     <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#f4f5f8" media="(prefers-color-scheme: light)" />
+
+    <!-- Open Graph / social previews. The site itself never has indexable
+         content (every paste lives behind a fragment-only key), so we keep
+         OG generic — pointed at the landing experience, not specific pastes. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="dropln — encrypted ephemeral paste" />
+    <meta property="og:description" content="Zero-knowledge encrypted paste tool for developers. AES-256-GCM in your browser." />
+    <meta property="og:url" content="https://dropln.com/" />
+    <meta property="og:image" content="https://dropln.com/og.svg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="dropln" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="dropln — encrypted ephemeral paste" />
+    <meta name="twitter:description" content="Zero-knowledge encrypted paste tool for developers. AES-256-GCM in your browser." />
+    <meta name="twitter:image" content="https://dropln.com/og.svg" />
   </head>
   <body>
     <div id="root"></div>

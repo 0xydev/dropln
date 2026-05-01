@@ -1,0 +1,8 @@
+# Pastes live behind URL fragments — the server never sees the key, and
+# crawled URLs would be useless without it. Letting bots crawl the SPA shell
+# wastes their bandwidth and ours; disallow everything except the landing.
+User-agent: *
+Disallow: /p/
+Disallow: /api/
+Allow: /$
+Allow: /history

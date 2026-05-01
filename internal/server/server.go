@@ -25,7 +25,7 @@ func New(cfg *config.Config, logger *slog.Logger, store storage.Store, limiter *
 		store:   store,
 		limiter: limiter,
 	}
-	s.handler = securityHeaders(cfg.HSTS)(s.routes())
+	s.handler = securityHeaders(cfg.HSTS, cfg.DevEndpoints)(s.routes())
 	return s
 }
 
@@ -49,7 +49,9 @@ func (s *Server) routes() http.Handler {
 	mux.Handle("POST /api/v1/paste/{id}/comment", rateLimit(http.HandlerFunc(s.handleCreateComment)))
 	mux.HandleFunc("GET /api/v1/paste/{id}/comments", s.handleListComments)
 
-	mux.Handle("GET /_dev/", http.StripPrefix("/_dev/", dev.Handler()))
+	if s.cfg.DevEndpoints {
+		mux.Handle("GET /_dev/", http.StripPrefix("/_dev/", dev.Handler()))
+	}
 
 	// Catch-all: serve the embedded frontend SPA. Specific patterns above
 	// take precedence (Go 1.22+ ServeMux specificity rules).

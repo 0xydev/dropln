@@ -2,19 +2,28 @@ package server
 
 import (
 	"io/fs"
+	"mime"
 	"net/http"
 	"strings"
 
 	"github.com/0xydev/dropln/web"
 )
 
+func init() {
+	// Go's mime package doesn't know .webmanifest by default; register so
+	// the FileServer below sets the correct Content-Type.
+	_ = mime.AddExtensionType(".webmanifest", "application/manifest+json")
+	_ = mime.AddExtensionType(".woff2", "font/woff2")
+}
+
 // spaHandler serves the embedded frontend bundle.
 //
 //   - Real files in dist/ (e.g. /assets/index-abc.js) → served as-is, with
 //     long-lived cache headers since Vite hashes filenames.
 //   - SPA routes (e.g. /, /p/abc123…) → fall back to index.html.
-//   - /api/* → 404 (the API mux already handled known endpoints; reaching
-//     here means the path is unknown and we shouldn't serve HTML for it).
+//   - /api/* and /_dev/* (when disabled) → 404 (the API mux already handled
+//     known endpoints; reaching here means the path is unknown and we
+//     shouldn't serve the SPA shell for it).
 func spaHandler() http.Handler {
 	root, err := fs.Sub(web.DistFS, "dist")
 	if err != nil {
@@ -33,8 +42,9 @@ func spaHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/")
 
-		// Don't let the catch-all swallow unknown API requests.
-		if strings.HasPrefix(path, "api/") {
+		// Don't let the catch-all swallow unknown API or dev requests —
+		// they should 404 cleanly rather than render the SPA shell.
+		if strings.HasPrefix(path, "api/") || strings.HasPrefix(path, "_dev/") {
 			http.NotFound(w, r)
 			return
 		}
@@ -43,7 +53,9 @@ func spaHandler() http.Handler {
 		if path != "" && path != "index.html" {
 			if f, err := root.Open(path); err == nil {
 				_ = f.Close()
-				if strings.HasPrefix(path, "assets/") {
+				switch {
+				case strings.HasPrefix(path, "assets/"),
+					strings.HasPrefix(path, "fonts/"):
 					w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 				}
 				fileServer.ServeHTTP(w, r)

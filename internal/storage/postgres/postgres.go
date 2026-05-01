@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/0xydev/dropln/internal/storage"
 	"github.com/jackc/pgerrcode"
@@ -20,8 +21,32 @@ type Store struct {
 
 // New connects to Postgres using the given URL and applies any pending
 // migrations. The caller owns the returned Store and must call Close.
+//
+// Pool sizing defaults are tuned for a paste service: bursty writes capped
+// by the rate limiter, mostly cheap reads. Override per-deployment via DSN
+// query params (e.g. ?pool_max_conns=50) when fronting heavier traffic.
 func New(ctx context.Context, dsn string) (*Store, error) {
-	pool, err := pgxpool.New(ctx, dsn)
+	cfg, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return nil, fmt.Errorf("parse dsn: %w", err)
+	}
+	if cfg.MaxConns == 4 { // pgxpool default — caller didn't override
+		cfg.MaxConns = 25
+	}
+	if cfg.MinConns == 0 {
+		cfg.MinConns = 2
+	}
+	if cfg.MaxConnLifetime == 0 {
+		cfg.MaxConnLifetime = time.Hour
+	}
+	if cfg.MaxConnIdleTime == 0 {
+		cfg.MaxConnIdleTime = 30 * time.Minute
+	}
+	if cfg.HealthCheckPeriod == 0 {
+		cfg.HealthCheckPeriod = time.Minute
+	}
+
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("connect: %w", err)
 	}

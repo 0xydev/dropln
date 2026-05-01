@@ -26,6 +26,11 @@ type Config struct {
 	// When true, send Strict-Transport-Security. Only enable when serving
 	// over HTTPS (typically behind a TLS-terminating proxy).
 	HSTS bool
+
+	// When true, expose /_dev/ utilities (round-trip crypto demo). These
+	// pages ship inline scripts and exist purely for local interop testing,
+	// so production deployments should leave this off.
+	DevEndpoints bool
 }
 
 func Load() (*Config, error) {
@@ -66,6 +71,7 @@ func Load() (*Config, error) {
 
 	cfg.TrustProxy = parseBool(os.Getenv("DROPLN_TRUST_PROXY"))
 	cfg.HSTS = parseBool(os.Getenv("DROPLN_HSTS"))
+	cfg.DevEndpoints = parseBool(os.Getenv("DROPLN_DEV_ENDPOINTS"))
 
 	if cfg.DatabaseURL == "" {
 		return nil, fmt.Errorf("DROPLN_DATABASE_URL is required")

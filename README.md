@@ -69,6 +69,7 @@ All settings are environment variables.
 | `DROPLN_RATE_LIMIT_BURST` | `5` | Burst capacity |
 | `DROPLN_TRUST_PROXY` | `false` | If `true`, honor `X-Forwarded-For` / `X-Real-IP`. Only enable behind a reverse proxy that strips spoofed values. |
 | `DROPLN_HSTS` | `false` | Send `Strict-Transport-Security` header. Only enable when serving over HTTPS. |
+| `DROPLN_DEV_ENDPOINTS` | `false` | Expose `/_dev/round-trip.html` (local interop demo). Off in production — relaxes CSP for that path. |
 
 Migrations run automatically on startup (embedded via `embed.FS`).
 

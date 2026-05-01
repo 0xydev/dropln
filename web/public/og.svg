@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
+  <!-- background -->
+  <rect width="1200" height="630" fill="#0a0a0a"/>
+
+  <!-- subtle radial accent in corner -->
+  <defs>
+    <radialGradient id="g" cx="0" cy="0" r="800" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#14B8A6" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#14B8A6" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#g)"/>
+
+  <!-- glyph: drop + line -->
+  <g transform="translate(120, 220)">
+    <path d="M50 10c11 14 22 25 22 37a22 22 0 1 1-44 0c0-12 11-23 22-37z" fill="#14B8A6"/>
+    <line x1="0" y1="80" x2="100" y2="80" stroke="#14B8A6" stroke-width="10" stroke-linecap="round"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="280" y="320"
+        font-family="ui-monospace, 'SF Mono', Menlo, monospace"
+        font-size="160"
+        font-weight="700"
+        letter-spacing="-7"
+        fill="#f4f5f8">drop<tspan fill="#14B8A6">ln</tspan></text>
+
+  <!-- tagline -->
+  <text x="280" y="400"
+        font-family="ui-sans-serif, system-ui, -apple-system, sans-serif"
+        font-size="34"
+        font-weight="400"
+        letter-spacing="-0.5"
+        fill="#9aa0aa">zero-knowledge encrypted paste</text>
+
+  <!-- bottom meta line -->
+  <g transform="translate(120, 530)">
+    <circle cx="6" cy="6" r="6" fill="#14B8A6"/>
+    <text x="22" y="13"
+          font-family="ui-monospace, 'SF Mono', Menlo, monospace"
+          font-size="22"
+          font-weight="500"
+          letter-spacing="-0.3"
+          fill="#9aa0aa">aes-256-gcm · in your browser · nothing on the server</text>
+  </g>
+</svg>

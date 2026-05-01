@@ -1,0 +1,5 @@
+Contact: mailto:furkan@adikti.com
+Expires: 2027-05-01T00:00:00.000Z
+Preferred-Languages: en, tr
+Canonical: https://dropln.com/.well-known/security.txt
+Policy: https://dropln.com/
