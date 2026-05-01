@@ -1,0 +1,78 @@
+#compdef dropln
+# zsh completion for dropln
+#
+# Install:
+#   - homebrew handles this automatically
+#   - manual: place this file in any directory in $fpath named `_dropln`
+#     (e.g. /usr/local/share/zsh/site-functions/) and `compinit`.
+
+_dropln() {
+    local context state state_descr line
+    typeset -A opt_args
+
+    local -a create_flags=(
+        '--server[server endpoint]:url:_dropln_servers'
+        '--expire[expiry window]:window:(5min 10min 1hour 1day 1week 1month 1year never)'
+        '--burn[one-time-read paste]'
+        '--password[password protect]:password:'
+        '--file[attach file]:file:_files'
+        '--format[paste format]:format:(plaintext syntaxhighlighting markdown)'
+        '--no-discussion[disable comments]'
+        '--copy[copy URL to clipboard]'
+        '--note[local-history note]:note:'
+        '(--quiet -q)'{--quiet,-q}'[print only the URL]'
+    )
+    local -a fetch_flags=(
+        '--server[server endpoint]:url:_dropln_servers'
+        '--extract[attachment dir]:dir:_directories'
+        '--output[paste-text output file]:file:_files'
+        '--no-text[skip paste text output]'
+        '--no-attachment[skip attachment auto-save]'
+        '--force[overwrite existing files]'
+        '--password[decrypt password]:password:'
+    )
+    local -a delete_flags=(
+        '--token[delete token]:token:'
+    )
+    local -a global_flags=(
+        '--version[print version]'
+        '(--help -h)'{--help,-h}'[show help]'
+    )
+
+    _arguments -C \
+        '1: :->cmd' \
+        '*:: :->args'
+
+    case $state in
+        cmd)
+            _alternative \
+                'commands:command:(list delete rm)' \
+                "create-flags:flag:_describe -t flags 'flag' create_flags" \
+                "fetch-flags:flag:_describe -t flags 'flag' fetch_flags" \
+                "global:flag:_describe -t flags 'flag' global_flags"
+            ;;
+        args)
+            case $line[1] in
+                delete|rm)
+                    _arguments $delete_flags $global_flags
+                    ;;
+                list)
+                    _arguments $global_flags
+                    ;;
+                *)
+                    _arguments $create_flags $fetch_flags $global_flags
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+_dropln_servers() {
+    local -a servers=(
+        'https\://dropln.com:public hosted instance'
+        'http\://localhost\:8080:local dev'
+    )
+    _describe 'server' servers
+}
+
+_dropln "$@"

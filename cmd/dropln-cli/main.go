@@ -6,9 +6,11 @@
 //   cat error.log | dropln --burn            # one-time-read URL
 //   dropln --file diagram.png                # attachment → URL
 //   dropln abc123def456789a#KEY              # fetch & decrypt → stdout
-//   dropln https://dropln.example.com/p/abc/#KEY
+//   dropln https://dropln.com/p/abc/#KEY
 //
 // All crypto happens here in the CLI; the server only sees ciphertext.
+// Default server is https://dropln.com — override with --server or the
+// DROPLN_SERVER env var when self-hosting.
 package main
 
 import (
@@ -49,7 +51,7 @@ USAGE
   dropln list                         list pastes you've created locally
 
 CREATE FLAGS
-  --server URL          server endpoint (env DROPLN_SERVER, default http://localhost:8080)
+  --server URL          server endpoint (env DROPLN_SERVER, default https://dropln.com)
   --expire WIN          5min|10min|1hour|1day|1week|1month|1year|never (default 1day)
   --burn                one-time-read paste (URL gets #- warning prefix)
   --password PW         password protect (combined with URL key via PBKDF2)
@@ -199,7 +201,7 @@ func parseArgs(args []string) (*runConfig, action, error) {
 		cfg.server = os.Getenv("DROPLN_SERVER")
 	}
 	if cfg.server == "" {
-		cfg.server = "http://localhost:8080"
+		cfg.server = "https://dropln.com"
 	}
 	cfg.server = strings.TrimRight(cfg.server, "/")
 

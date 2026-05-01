@@ -7,12 +7,12 @@
 	# Hand off to the Go server. It already sets every security header we
 	# care about (CSP, COOP, CORP, Permissions-Policy, etc.); Caddy just
 	# adds TLS + compression on top.
+	#
+	# X-Forwarded-{For,Proto} are set automatically by Caddy's reverse_proxy.
+	# Only X-Real-IP needs an explicit header_up because the Go side reads
+	# that one first when DROPLN_TRUST_PROXY=true.
 	reverse_proxy dropln:8080 {
-		# Real client IP — DROPLN_TRUST_PROXY=true honors this for rate
-		# limiting and request logs.
 		header_up X-Real-IP {remote_host}
-		header_up X-Forwarded-For {remote_host}
-		header_up X-Forwarded-Proto {scheme}
 	}
 
 	log {

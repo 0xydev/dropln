@@ -168,17 +168,36 @@ For comments: `adata` is the flat cipher-params (8 elements), and
 
 ## CLI
 
-`bin/dropln-cli` is a stand-alone client. Same crypto module as the web UI;
-server still only sees ciphertext. Built by `make build-cli` (or `make build`,
-which builds everything).
+`dropln` is a stand-alone client that uses the same crypto module as the
+web UI — the server still only sees ciphertext. It defaults to
+`https://dropln.com`; override with `--server` or the `DROPLN_SERVER` env
+var when self-hosting.
+
+### Install
 
 ```sh
-make build-cli
-sudo install -m 0755 bin/dropln-cli /usr/local/bin/dropln   # optional
+# 1. install script (verifies SHA-256 against the GitHub release)
+curl -L https://dropln.com/install.sh | sh
 
-# server defaults to http://localhost:8080 — point elsewhere with --server or
-# the DROPLN_SERVER env var:
-export DROPLN_SERVER=https://dropln.example.com
+# 2. homebrew tap
+brew install 0xydev/dropln/dropln
+# or:  brew tap 0xydev/dropln  &&  brew install dropln
+
+# 3. go toolchain
+go install github.com/0xydev/dropln/cmd/dropln-cli@latest
+# (the resulting binary is named `dropln-cli` when installed via `go install` —
+#  symlink it to `dropln` if you prefer the shorter name)
+
+# 4. from source
+git clone https://github.com/0xydev/dropln && cd dropln
+make build-cli
+sudo install -m 0755 bin/dropln-cli /usr/local/bin/dropln
+```
+
+To self-host:
+
+```sh
+export DROPLN_SERVER=https://paste.example.com
 ```
 
 ### Common flows
@@ -315,4 +334,20 @@ core verb is `cat secret.txt | dropln`.
 
 ## License
 
-TBD.
+[FSL-1.1-MIT](./LICENSE) — Functional Source License with future MIT grant.
+
+**Plain English:**
+
+- ✅ **Free** for any non-competing purpose: personal use, internal company
+  use, education, research, contributing back, forking, self-hosting your
+  own instance.
+- ❌ **Not free** for Competing Use — running a paid SaaS or commercial
+  product whose value primarily derives from this Software. Reach out at
+  furkan@adikti.com for a commercial license.
+- ⏳ Each released version automatically becomes **MIT-licensed** on its
+  second anniversary, so the project's older history is always fully
+  open source.
+
+The license follows the canonical FSL-1.1-MIT text from
+[fsl.software](https://fsl.software/) — same license used by Sentry,
+Keygen, and others in the source-available SaaS world.

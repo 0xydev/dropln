@@ -1,0 +1,45 @@
+# Triggered on `git push --tags` (any tag matching v*). Builds CLI binaries
+# for darwin/linux/windows × amd64/arm64 via goreleaser, attaches them to a
+# GitHub Release, and pushes a Homebrew formula to 0xydev/homebrew-dropln.
+#
+# Required secrets:
+#   - GITHUB_TOKEN              auto-provided by Actions (writes release)
+#   - HOMEBREW_TAP_GITHUB_TOKEN  PAT with `repo` scope on the homebrew-dropln
+#                                repo so goreleaser can push the formula
+#
+# Required permissions: contents:write (release upload).
+
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # goreleaser needs full history for changelog
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: true
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}

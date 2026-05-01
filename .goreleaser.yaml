@@ -1,0 +1,137 @@
+# GoReleaser config for the dropln CLI.
+#
+# Triggered by `git push --tags` (see .github/workflows/release.yml). Builds
+# the CLI as a stand-alone binary called `dropln` (the source path stays
+# `cmd/dropln-cli` to avoid colliding with the server binary `cmd/dropln`,
+# but the user-facing tool name is just `dropln`).
+
+version: 2
+
+project_name: dropln
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: dropln
+    main: ./cmd/dropln-cli
+    binary: dropln
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X main.Version={{.Version}}
+    flags:
+      - -trimpath
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      # Windows ARM64 has no real install base for a CLI — skip to keep
+      # the release matrix small.
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: default
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_
+      {{- if eq .Os "darwin" }}macos
+      {{- else }}{{ .Os }}{{ end }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else }}{{ .Arch }}{{ end }}
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - README.md
+      - LICENSE*
+      - completions/*
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ .Version }}-snapshot-{{ .ShortCommit }}"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - Merge pull request
+      - Merge branch
+
+release:
+  github:
+    owner: 0xydev
+    name: dropln
+  draft: false
+  prerelease: auto
+  header: |
+    ## dropln {{ .Tag }}
+
+    Encrypted ephemeral paste — install the CLI to share secrets that
+    decrypt only in your recipient's browser/terminal.
+  footer: |
+    ---
+    **Install**
+
+    ```sh
+    # via go
+    go install github.com/0xydev/dropln/cmd/dropln-cli@{{ .Tag }}
+
+    # via homebrew (after `brew tap 0xydev/dropln`)
+    brew install dropln
+
+    # via install script
+    curl -L https://dropln.com/install.sh | sh
+    ```
+
+    Web app: https://dropln.com
+
+# Auto-publish a Homebrew cask to the 0xydev/homebrew-dropln tap on every
+# release. Requires HOMEBREW_TAP_GITHUB_TOKEN secret in the workflow
+# (a PAT with `repo` scope on 0xydev/homebrew-dropln).
+#
+# GoReleaser deprecated `brews` (formula) in favor of `homebrew_casks` in
+# v2.10 — the cask block below is the modern equivalent and supports
+# multi-shell completions natively.
+homebrew_casks:
+  - name: dropln
+    repository:
+      owner: 0xydev
+      name: homebrew-dropln
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: "https://dropln.com"
+    description: "Zero-knowledge encrypted ephemeral paste — CLI client"
+    binaries:
+      - dropln
+    url:
+      # Distinct from `homepage` (dropln.com) so `brew audit` is happy.
+      verified: github.com/0xydev/dropln/
+    completions:
+      bash: completions/dropln.bash
+      zsh: completions/_dropln
+      fish: completions/dropln.fish
+    # Bypass macOS Gatekeeper quarantine on the unsigned binary so the
+    # first run doesn't get the "cannot verify developer" dialog.
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/dropln"]
+          end
+    commit_author:
+      name: dropln-bot
+      email: noreply@dropln.com
+    commit_msg_template: "dropln {{ .Tag }}"
