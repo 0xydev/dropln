@@ -1,13 +1,16 @@
-# Production-ish compose for internal deployment.
+# Production stack: Postgres + dropln + Caddy (auto-TLS).
 #
-# Brings up the app + Postgres with a persistent volume and a healthcheck.
-# TLS termination is intentionally NOT included — put nginx / Caddy / your
-# team's existing reverse proxy in front and proxy to dropln:8080.
+# Caddy fronts the app on :80/:443, terminates TLS via Let's Encrypt, and
+# reverse-proxies to dropln:8080 over the internal network. Dropln is not
+# exposed on the host — only Caddy listens on the public interface.
 #
 # Usage:
-#   1. cp .env.example .env  &&  edit values
+#   1. cp .env.example .env  &&  edit POSTGRES_PASSWORD and SITE_DOMAIN
 #   2. docker compose up -d --build
-#   3. docker compose logs -f dropln
+#   3. docker compose logs -f
+#
+# To run without Caddy (e.g. behind your own nginx/proxy), comment out the
+# caddy service and uncomment the dropln `ports:` block to expose 8080.
 
 services:
   postgres:
@@ -37,13 +40,33 @@ services:
       DROPLN_MAX_PASTE_BYTES: ${DROPLN_MAX_PASTE_BYTES:-33554432}
       DROPLN_RATE_LIMIT_PER_MIN: ${DROPLN_RATE_LIMIT_PER_MIN:-10}
       DROPLN_RATE_LIMIT_BURST: ${DROPLN_RATE_LIMIT_BURST:-5}
-      DROPLN_TRUST_PROXY: ${DROPLN_TRUST_PROXY:-false}
-      DROPLN_HSTS: ${DROPLN_HSTS:-false}
+      DROPLN_TRUST_PROXY: ${DROPLN_TRUST_PROXY:-true}
+      DROPLN_HSTS: ${DROPLN_HSTS:-true}
       DROPLN_DEV_ENDPOINTS: ${DROPLN_DEV_ENDPOINTS:-false}
+    expose:
+      - "8080"
+    # Uncomment to expose dropln directly on the host (e.g. when running
+    # without Caddy behind another reverse proxy).
+    # ports:
+    #   - "127.0.0.1:${DROPLN_PORT:-8080}:8080"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - dropln
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:-dropln.com}
     ports:
-      # Bind to localhost so the reverse proxy on the same host fronts it,
-      # but the app isn't exposed to the public network directly.
-      - "127.0.0.1:${DROPLN_PORT:-8080}:8080"
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
 
 volumes:
   postgres-data:
+  caddy-data:
+  caddy-config:

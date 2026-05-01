@@ -1,0 +1,22 @@
+# SITE_DOMAIN env var sets the host (defaults to dropln.com). Caddy auto-
+# obtains and renews the Let's Encrypt cert — port 80 and 443 must be open
+# to the public internet for the HTTP-01 / TLS-ALPN challenges to succeed.
+{$SITE_DOMAIN:dropln.com} {
+	encode gzip zstd
+
+	# Hand off to the Go server. It already sets every security header we
+	# care about (CSP, COOP, CORP, Permissions-Policy, etc.); Caddy just
+	# adds TLS + compression on top.
+	reverse_proxy dropln:8080 {
+		# Real client IP — DROPLN_TRUST_PROXY=true honors this for rate
+		# limiting and request logs.
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
