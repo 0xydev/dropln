@@ -672,6 +672,33 @@ function ViewSuccess({
           />
         )}
       </div>
+
+      {/* Mobile-only sticky bottom action bar — Copy paste + Share URL.
+          On desktop these actions live in the view-bar at the top; on
+          phone the top bar is too cramped to fit them, and putting CTAs
+          at the viewport bottom is also where the thumb naturally lands. */}
+      <div className="view-action-bar">
+        <button className="btn btn-outline" onClick={copyContent}>
+          {copied ? (
+            <>
+              <IconCheck size={14} /> Copied
+            </>
+          ) : (
+            <>
+              <IconCopy size={14} /> Copy paste
+            </>
+          )}
+        </button>
+        <button
+          className="btn btn-primary"
+          onClick={() => {
+            navigator.clipboard?.writeText(pasteData.url).catch(() => {});
+            toast({ msg: "URL copied", kind: "ok" });
+          }}
+        >
+          <IconShare size={14} /> Share URL
+        </button>
+      </div>
     </div>
   );
 }

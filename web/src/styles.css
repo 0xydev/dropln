@@ -2331,6 +2331,12 @@ button, a, [role="button"], .nav-link, .btn, .chip, .kbd-hint {
   display: none;
 }
 
+/* Mobile-only view action bar (Copy / Share). Hidden on desktop where
+   those actions live in the view-bar at the top of the screen. */
+.view-action-bar {
+  display: none;
+}
+
 /* ─── Touch-device behaviors (any viewport with no hover) ───────────── */
 @media (hover: none) and (pointer: coarse) {
   /* Inputs at <16px font-size cause iOS to auto-zoom on focus. */
@@ -2529,21 +2535,53 @@ button, a, [role="button"], .nav-link, .btn, .chip, .kbd-hint {
   }
   .toast { min-width: 0; max-width: none; }
 
-  /* ─── View page: read-friendly, full-bleed ─────────────────────────── */
-  .view-stage { padding: 16px 0 0; }
-  .view-content-wrap { padding: 12px 14px 80px; }
+  /* ─── View page ──────────────────────────────────────────────────────
+     Mobile reading flow rebuilt as: minimal sticky top (id + countdown +
+     critical-badge), full-bleed content, sticky bottom action bar with
+     Copy + Share. The Copy/Share buttons in the desktop top bar are
+     hidden on mobile — they live in the action bar instead. */
+  .view-content-wrap { padding: 12px 14px 16px; }
   .viewer-card { border-radius: var(--r-md); margin: 0; }
 
+  /* Sticky top bar — re-anchor below the mobile topnav (56 + safe), make
+     it scroll horizontally if badges spill rather than wrap to ugly
+     stacked lines. */
   .view-bar {
-    flex-wrap: wrap;
+    top: calc(56px + env(safe-area-inset-top));
+    padding: 8px 12px;
     gap: 6px;
-    padding: 10px 12px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
     font-size: var(--tx-sm);
   }
-  .view-bar .btn span:not(.kbd):not(.dot) { display: none; }
+  .view-bar::-webkit-scrollbar { display: none; }
+  .view-bar > * { flex-shrink: 0; }
 
-  .viewer-head { padding: 14px 16px; }
-  .viewer-body { padding: 16px; }
+  /* Hide non-essential badges from the top bar — they're confirmatory,
+     not actionable. The user already trusts the page; they don't need
+     a "Decrypted in browser" reminder taking thumb space. */
+  .view-bar .badge-accent { display: none; }
+  .view-bar .badge:has(.dot-pulse) { display: none; }
+
+  /* Hide top-bar Copy paste / Share URL — moved to bottom action bar */
+  .view-bar > .btn { display: none; }
+  .view-bar > [style*="flex: 1"] { display: none; }
+
+  .viewer-head {
+    padding: 10px 14px;
+    gap: 6px;
+  }
+  /* Filename + line/byte meta — keep filename, hide the verbose meta */
+  .viewer-head > .muted.mono { display: none; }
+  /* Hide fullscreen button on mobile — broken with safe-areas anyway */
+  .viewer-head-actions > button[aria-label="Fullscreen"],
+  .viewer-head-actions > button[aria-label="Exit fullscreen"] {
+    display: none;
+  }
+
+  .viewer-body { padding: 14px; }
   .viewer-body pre, .viewer-body code { font-size: 13px; }
 
   .markdown-view {
@@ -2554,15 +2592,63 @@ button, a, [role="button"], .nav-link, .btn, .chip, .kbd-hint {
   .markdown-view h1 { font-size: 22px; }
   .markdown-view h2 { font-size: 19px; }
   .markdown-view h3 { font-size: 16px; }
+  .markdown-view pre { padding: 12px; font-size: 13px; }
+  .markdown-view img { max-width: 100%; height: auto; }
+  .markdown-view table { display: block; overflow-x: auto; }
 
-  .attachment-block { border-radius: var(--r-md); }
+  .attachment-block { border-radius: var(--r-md); margin: 14px 0; }
   .attachment-head { padding: 12px 14px; flex-wrap: wrap; gap: 8px; }
+  .attachment-head .attachment-name { font-size: 12px; word-break: break-all; }
+  .attachment-head .attachment-meta { font-size: 11px; }
   .attachment-preview { padding: 14px; }
+  .attachment-preview img,
+  .attachment-preview video { max-width: 100%; height: auto; }
 
-  /* ─── Comments thread + composer ───────────────────────────────────── */
+  /* Expired banner — give it a touch more breathing room on phone */
+  .expired-banner {
+    margin: 0 0 14px;
+    padding: 12px 14px;
+    border-radius: var(--r-md);
+  }
+
+  /* ─── Mobile-only view action bar (Copy / Share) ─────────────────────
+     The desktop puts these in the top bar; mobile gets them sticky at
+     the viewport bottom (one-thumb reach). Lives inside ViewPaste — see
+     `.view-action-bar` JSX. */
+  .view-action-bar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 50;
+    display: flex;
+    gap: 8px;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    background: color-mix(in oklab, var(--bg-0) 78%, transparent);
+    backdrop-filter: saturate(160%) blur(14px);
+    -webkit-backdrop-filter: saturate(160%) blur(14px);
+    border-top: 1px solid var(--line-2);
+  }
+  .view-action-bar .btn {
+    flex: 1;
+    justify-content: center;
+    height: 46px;
+    font-size: 14px;
+    gap: 8px;
+  }
+
+  /* ─── Comments thread + composer ─────────────────────────────────────
+     thread-head: hide the "shared key" reassurance badge on mobile —
+     it's purely informational (and was pushing the title row off-
+     screen on narrow phones). Same reasoning we applied to the
+     "Decrypted in browser" badge in the view-bar. */
   .thread { padding: 16px 14px 24px; gap: 14px; }
-  .thread-head { gap: 8px; padding-bottom: 10px; }
+  .thread-head {
+    gap: 8px;
+    padding-bottom: 10px;
+    flex-wrap: wrap;
+  }
   .thread-head h3 { font-size: 16px; }
+  .thread-head .badge-accent { display: none; }
+  .thread-count { font-size: 12px; }
 
   .comment { gap: 10px; padding: 12px 0; }
   .comment-body { font-size: 14px; line-height: 1.55; }
@@ -2570,7 +2656,15 @@ button, a, [role="button"], .nav-link, .btn, .chip, .kbd-hint {
   .comment-actions .btn { padding: 6px 10px; font-size: 12px; }
 
   .composer { border-radius: var(--r-md); }
-  .composer-head { padding: 10px 12px; flex-wrap: wrap; gap: 6px; }
+  .composer-head {
+    padding: 10px 12px;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  /* Drop the "Encrypted with the paste's key" reassurance on mobile —
+     it eats the whole row when wrapped, and the lock icon on the post
+     button already telegraphs encryption */
+  .composer-reassure { display: none; }
   .composer-textarea {
     min-height: 88px;
     padding: 12px;
@@ -2586,47 +2680,110 @@ button, a, [role="button"], .nav-link, .btn, .chip, .kbd-hint {
     height: 44px;
     justify-content: center;
   }
+  /* Hide the "⌘ ↵ to post" hint span entirely on mobile — Cmd+Enter
+     doesn't apply on phone keyboards, and leaving "to post" hanging
+     after a hidden .kbd looks like a render bug. The same wrapper
+     span carries the expiry message when the paste is expired, which
+     IS useful — :has() lets us suppress only the kbd-hint variant. */
+  .composer-foot > .muted.mono:has(.kbd) { display: none; }
 
-  /* ─── Success page: centered, big QR, primary URL ──────────────────── */
-  .success-stage { padding: 24px 16px 16px; }
+  /* ─── Success page ───────────────────────────────────────────────────
+     The desktop layout is a centered card with: title + URL row (input
+     + copy button side-by-side) + 5 badges + 4 action buttons + delete
+     token row. On phone we stack the URL row, wrap the badge cluster,
+     turn the 4-up action grid into 2 columns of buttons, and force the
+     QR (when toggled) to be a centered 200×200 block instead of a side-
+     by-side 132×132 + caption. */
+  .success-stage { padding: 24px 14px 16px; }
   .success-card {
     padding: 22px 18px;
     max-width: 100%;
     border-radius: var(--r-lg);
   }
-  .success-head {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 10px;
-  }
-  .success-head h2 { font-size: 22px; margin: 0; }
+  .success-title { font-size: 22px; margin: 14px 0 6px; line-height: 1.25; }
+  .success-sub { font-size: 13px; line-height: 1.55; }
 
-  .success-qr {
-    margin: 18px auto;
-    padding: 14px;
-    background: #fff;
-    border-radius: var(--r-md);
-  }
-  .success-qr canvas {
-    width: 200px !important;
-    height: 200px !important;
-    display: block;
-  }
-
-  .success-url-row {
+  /* URL row: stack vertically (input on top, copy button full-width below) */
+  .url-row {
     flex-direction: column;
     align-items: stretch;
-    gap: 8px;
+    gap: 0;
   }
-  .success-url-row .input { font-size: 14px; }
-  .success-url-row .btn {
+  .url-text {
+    padding: 12px 14px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--line-2);
+    /* Allow the URL to wrap so the user can see the whole thing rather
+       than the desktop's truncated single line — they're going to copy
+       it anyway, but seeing it builds trust */
+    text-overflow: clip;
+    white-space: normal;
+    word-break: break-all;
+  }
+  .url-copy {
+    padding: 12px;
+    border-left: none;
     width: 100%;
     justify-content: center;
     height: 44px;
+    font-size: 14px;
   }
 
-  .success-meta { grid-template-columns: 1fr; gap: 10px; }
+  /* Badge cluster wraps; smaller padding so 5 badges fit one row when
+     possible, two rows otherwise */
+  .success-meta { gap: 6px; margin-bottom: 16px; }
+  .success-meta .badge { font-size: 11px; padding: 4px 8px; }
+
+  /* Action buttons:
+       row 1:  [Copy URL primary, full width]
+       row 2:  [Open paste]   [Show/Hide QR]
+       row 3:  [Create another, full width]
+     Primary + tertiary span both columns; the two outline buttons
+     share a row. */
+  .success-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .success-actions .btn {
+    height: 44px;
+    justify-content: center;
+    font-size: 13px;
+    padding: 0 12px;
+  }
+  .success-actions .btn-primary {
+    grid-column: 1 / -1;
+    height: 48px;
+    font-size: 15px;
+  }
+  .success-actions .btn-ghost { grid-column: 1 / -1; }
+
+  /* QR toggle: stack canvas + caption vertically, center, big QR */
+  .qr-toggle {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    margin-top: 18px;
+    padding: 18px;
+    background: var(--bg-inset);
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-md);
+    gap: 14px;
+  }
+  .qr-canvas {
+    width: 220px !important;
+    height: 220px !important;
+    padding: 10px;
+    margin: 0;
+  }
+
+  /* Delete token row: stack the link below the question */
+  .delete-token-row {
+    margin-top: 22px;
+    padding-top: 16px;
+    line-height: 1.5;
+  }
+  .delete-token-revealed { word-break: break-all; padding: 10px 12px; }
 
   /* ─── Gates (password / burn warning / not-found / loading) ────────── */
   .pw-stage, .gate-stage, .err-stage, .loading-stage {
@@ -2661,30 +2818,72 @@ button, a, [role="button"], .nav-link, .btn, .chip, .kbd-hint {
     flex: 1; justify-content: center; height: 42px;
   }
 
+  /* Children rendered by HistoryPage in this order (no shared class on
+     #2 and #3, so we address them by :nth-child):
+       1. .history-id      — mono id, with .history-note <em> nested
+       2. .muted.mono      — relative time ("2 minutes ago")
+       3. .mono            — expires-in with clock icon ("in 23 hours")
+       4. .history-flags   — burn / etc badges, may be empty
+       5. .history-actions — copy / open / delete icon buttons
+
+     Mobile layout — each row becomes a card:
+       row 1:  {paste id, note below}                    [copy] [open] [del]
+       row 2:  2 minutes ago
+       row 3:  ⏱ in 23 hours
+       row 4:  🔥 burn (only when present) */
   .history-row-head { display: none; }
   .history-row {
     display: grid;
     grid-template-columns: 1fr auto;
-    grid-template-areas:
-      "id      delete"
-      "note    note"
-      "time    time";
-    gap: 6px 8px;
+    align-items: start;
+    column-gap: 12px;
+    row-gap: 6px;
     padding: 14px 16px;
     border-bottom: 1px solid var(--line-1);
     cursor: pointer;
   }
-  .history-row > .history-id { grid-area: id; font-size: 13px; }
-  .history-row > .history-note {
-    grid-area: note; color: var(--fg-2); font-size: 13px;
+  .history-row > :nth-child(1) {
+    grid-row: 1;
+    grid-column: 1;
+    font-size: 13px;
+    word-break: break-all;
+    min-width: 0;
+  }
+  /* .history-note is inside .history-id (em). Surface it on its own
+     line below the id so it reads like a subtitle */
+  .history-row .history-note {
+    display: block;
+    margin-top: 4px;
+    color: var(--fg-2);
+    font-style: normal;
+    font-size: 13px;
+    font-family: var(--font-sans);
   }
   .history-row > .history-actions {
-    grid-area: delete; justify-content: flex-end;
+    grid-row: 1;
+    grid-column: 2;
+    display: flex;
+    gap: 4px;
+    align-self: start;
   }
-  .history-row > .history-time {
-    grid-area: time; font-size: 12px; color: var(--fg-2);
+  .history-row > :nth-child(2),
+  .history-row > :nth-child(3) {
+    grid-column: 1 / -1;
+    display: inline-flex;
+    align-items: center;
+    font-size: 12px;
+    color: var(--fg-2);
+    gap: 6px;
   }
-  .history-row > .history-expires { display: none; }
+  .history-row > :nth-child(2) { grid-row: 2; }
+  .history-row > :nth-child(3) { grid-row: 3; }
+  .history-row > .history-flags {
+    grid-row: 4;
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 4px;
+  }
+  .history-row > .history-flags:empty { display: none; }
   .history-row:active { background: var(--bg-2); }
 
   /* ─── Modals: full-screen sheet ────────────────────────────────────── */
@@ -2712,16 +2911,16 @@ button, a, [role="button"], .nav-link, .btn, .chip, .kbd-hint {
   }
   .shortcuts-body { padding: 16px; gap: 16px; }
 
-  /* ─── Onboarding overlay ───────────────────────────────────────────── */
-  .onboarding-overlay {
-    padding: 16px;
-    align-items: flex-end;
+  /* ─── Lightbox: respect safe areas, fit images on phone ────────────── */
+  .lightbox {
+    padding: 12px;
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
   }
-  .onboarding-card {
-    max-width: 100%;
-    border-radius: var(--r-lg);
-    margin-bottom: env(safe-area-inset-bottom);
-  }
+  .lightbox img { max-width: 100%; max-height: 100%; }
+
+  /* ─── Window drop overlay: irrelevant on touch (no drag-drop) ──────── */
+  .window-drop-overlay { display: none; }
 }
 
 /* ─── Very narrow phones (iPhone SE, etc.) ──────────────────────────── */

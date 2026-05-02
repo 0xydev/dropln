@@ -635,9 +635,12 @@ function AppInner() {
   // ─── render ──────────────────────────────────────────────────────────
 
   // The mobile layer reserves bottom space for the sticky action bar;
-  // pages without one (history, success, view) opt out so they don't
-  // get a phantom 72px gap at the bottom of their content.
-  const hasActionBar = route.name === "create";
+  // pages without one (history, success) opt out so they don't get a
+  // phantom 72px gap at the bottom of their content. View also has an
+  // action bar (Copy paste / Share URL) but only on mobile — the CSS
+  // class is harmless on desktop since `.action-bar` and
+  // `.view-action-bar` are hidden there respectively.
+  const hasActionBar = route.name === "create" || route.name === "view";
 
   return (
     <div className={"app" + (hasActionBar ? "" : " no-action-bar")}>
