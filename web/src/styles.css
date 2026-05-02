@@ -1255,6 +1255,49 @@ html, body, .app, .topnav, .footer,
   font-size: 12.5px;
   color: var(--fg-0);
 }
+
+/* ============================ highlight.js theme ============================
+   Maps hljs token classes to dropln's design-system syntax variables so
+   markdown-rendered code blocks pick up the same palette as the
+   CodeMirror editor. The variables flip with the theme (dark / light)
+   so we get correct contrast in both modes for free.
+
+   See web/src/lib/markdown.ts for the highlighter wiring; this is the
+   pure presentation layer. */
+.markdown-view .hljs            { background: transparent; color: var(--fg-0); }
+.markdown-view .hljs-comment,
+.markdown-view .hljs-quote      { color: var(--syntax-comment); font-style: italic; }
+.markdown-view .hljs-keyword,
+.markdown-view .hljs-selector-tag,
+.markdown-view .hljs-literal,
+.markdown-view .hljs-section,
+.markdown-view .hljs-doctag     { color: var(--syntax-keyword); }
+.markdown-view .hljs-string,
+.markdown-view .hljs-bullet,
+.markdown-view .hljs-template-tag,
+.markdown-view .hljs-template-variable,
+.markdown-view .hljs-addition   { color: var(--syntax-string); }
+.markdown-view .hljs-number,
+.markdown-view .hljs-symbol,
+.markdown-view .hljs-meta       { color: var(--syntax-number); }
+.markdown-view .hljs-function,
+.markdown-view .hljs-title      { color: var(--syntax-function); }
+.markdown-view .hljs-property,
+.markdown-view .hljs-attribute,
+.markdown-view .hljs-variable,
+.markdown-view .hljs-name       { color: var(--syntax-property); }
+.markdown-view .hljs-type,
+.markdown-view .hljs-built_in,
+.markdown-view .hljs-class .hljs-title { color: var(--syntax-type); }
+.markdown-view .hljs-tag        { color: var(--syntax-tag); }
+.markdown-view .hljs-attr       { color: var(--syntax-attribute); }
+.markdown-view .hljs-regexp     { color: var(--syntax-regex); }
+.markdown-view .hljs-operator   { color: var(--syntax-operator); }
+.markdown-view .hljs-punctuation { color: var(--syntax-punct); }
+.markdown-view .hljs-deletion   { color: var(--burn); }
+.markdown-view .hljs-emphasis   { font-style: italic; }
+.markdown-view .hljs-strong     { font-weight: 600; }
+.markdown-view .hljs-link       { color: var(--accent); text-decoration: underline; }
 .markdown-view hr {
   border: none;
   border-top: 1px solid var(--line-1);

@@ -13,6 +13,8 @@ import {
 } from "./icons";
 import { QRCode, useKeyboard, useToast } from "./primitives";
 import { formatCountdown } from "../lib/format-utils";
+import { canNativeShare, shareOrCopy } from "../lib/share";
+import { IconShare } from "./icons";
 
 export type PasteData = {
   id: string;
@@ -65,6 +67,28 @@ export function SuccessCard({
     toast({ msg: "URL copied to clipboard", kind: "ok" });
     setTimeout(() => setCopied(false), 1800);
   }, [pasteData.url, toast]);
+
+  // Share-or-copy is for the primary CTA button. Cmd+C still goes
+  // through plain `copy` because that's what users expect from a
+  // keyboard shortcut — opening a share sheet on Cmd+C would be jarring.
+  const share = React.useCallback(async () => {
+    const out = await shareOrCopy({
+      url: pasteData.url,
+      title: "dropln",
+      text: "Encrypted paste — open to decrypt in your browser",
+    });
+    if (out.kind === "shared") return;
+    if (out.kind === "cancelled") return;
+    if (out.kind === "copied") {
+      setCopied(true);
+      toast({ msg: "URL copied to clipboard", kind: "ok" });
+      setTimeout(() => setCopied(false), 1800);
+      return;
+    }
+    toast({ msg: "Couldn't share — try again", kind: "warn" });
+  }, [pasteData.url, toast]);
+
+  const nativeShare = canNativeShare();
 
   // Cmd+C global on success view (only when no text selected)
   useKeyboard(
@@ -145,8 +169,25 @@ export function SuccessCard({
         </div>
 
         <div className="success-actions">
-          <button className="btn btn-primary" onClick={copy}>
-            <IconCopy size={13} /> Copy URL
+          {/* Primary CTA. On platforms with the Web Share API (mobile
+              Safari, Chrome Android, Edge mobile) we open the OS share
+              sheet — Messages / WhatsApp / Mail / AirDrop / etc. The
+              sheet always includes "Copy" as one of its options, so we
+              don't lose that capability. Desktop falls back to plain
+              clipboard with the same button. */}
+          <button
+            className="btn btn-primary"
+            onClick={nativeShare ? share : copy}
+          >
+            {nativeShare ? (
+              <>
+                <IconShare size={13} /> Share URL
+              </>
+            ) : (
+              <>
+                <IconCopy size={13} /> Copy URL
+              </>
+            )}
           </button>
           <button className="btn btn-outline" onClick={onOpenPaste}>
             <IconExternal size={13} /> Open paste

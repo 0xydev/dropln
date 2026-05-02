@@ -44,7 +44,7 @@ export default defineConfig({
             "@codemirror/lang-sql",
             "@codemirror/lang-yaml",
           ],
-          markdown: ["markdown-it"],
+          markdown: ["markdown-it", "highlight.js/lib/core"],
           qrcode: ["qrcode"],
         },
       },

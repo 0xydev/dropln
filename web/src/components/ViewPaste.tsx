@@ -16,6 +16,7 @@ import {
   IconShare,
 } from "./icons";
 import { useKeyboard, useToast } from "./primitives";
+import { shareOrCopy } from "../lib/share";
 import { CommentThread } from "./CommentThread";
 import type { PasteData, PasteSettings } from "./SuccessCard";
 import { FORMATS } from "../lib/options";
@@ -596,9 +597,15 @@ function ViewSuccess({
         </button>
         <button
           className="btn btn-outline btn-sm"
-          onClick={() => {
-            navigator.clipboard?.writeText(pasteData.url).catch(() => {});
-            toast({ msg: "URL copied", kind: "ok" });
+          onClick={async () => {
+            const out = await shareOrCopy({
+              url: pasteData.url,
+              title: "dropln",
+              text: "Encrypted paste — open to decrypt in your browser",
+            });
+            if (out.kind === "copied") toast({ msg: "URL copied", kind: "ok" });
+            if (out.kind === "failed")
+              toast({ msg: "Couldn't share", kind: "warn" });
           }}
         >
           <IconShare size={12} /> Share URL
@@ -676,7 +683,12 @@ function ViewSuccess({
       {/* Mobile-only sticky bottom action bar — Copy paste + Share URL.
           On desktop these actions live in the view-bar at the top; on
           phone the top bar is too cramped to fit them, and putting CTAs
-          at the viewport bottom is also where the thumb naturally lands. */}
+          at the viewport bottom is also where the thumb naturally lands.
+
+          Share URL goes through the Web Share API on supported browsers
+          (Safari iOS, Chrome Android) so users can hand the link to
+          Messages / WhatsApp / Slack / AirDrop natively, with clipboard
+          fallback elsewhere. */}
       <div className="view-action-bar">
         <button className="btn btn-outline" onClick={copyContent}>
           {copied ? (
@@ -691,9 +703,19 @@ function ViewSuccess({
         </button>
         <button
           className="btn btn-primary"
-          onClick={() => {
-            navigator.clipboard?.writeText(pasteData.url).catch(() => {});
-            toast({ msg: "URL copied", kind: "ok" });
+          onClick={async () => {
+            const out = await shareOrCopy({
+              url: pasteData.url,
+              title: "dropln",
+              text: "Encrypted paste — open to decrypt in your browser",
+            });
+            if (out.kind === "shared") return; // OS sheet handled it
+            if (out.kind === "cancelled") return; // user dismissed
+            if (out.kind === "copied") {
+              toast({ msg: "URL copied", kind: "ok" });
+              return;
+            }
+            toast({ msg: "Couldn't share — try copying manually", kind: "warn" });
           }}
         >
           <IconShare size={14} /> Share URL
